@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 1;
+use Test::More tests => 2;
 
 BEGIN {
     unshift @INC => ('t/test_lib', '/test_lib');
@@ -18,6 +18,20 @@ BEGIN {
 # be called after all are loaded. This should
 # result in the correct behavior.
 
-eval "use BasicTrait;";
+{
 
-ok(BasicTrait->is("TSimple"), '.. BasicTrait is TSimple');
+    local $SIG{__WARN__} = sub {
+        my $msg = shift;
+        if ($msg =~ /^Too late to run INIT block/) {
+            pass('... got the expected warning');
+            return;
+        }
+        else {
+            warn $msg;
+        }
+    };
+    
+    eval "use BasicTrait;";
+    
+    ok(BasicTrait->is("TSimple"), '.. BasicTrait is TSimple');
+}

@@ -4,7 +4,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION  = '0.03';
+our $VERSION  = '0.04';
 
 use overload ();
 use Data::Dumper;
@@ -52,6 +52,16 @@ use Class::Trait::Base;
 # for meeting requirements here
 
 my %TRAITS_TO_CHECK = ();
+
+# these traits are supplied "for free"
+
+my $TRAIT_LIB_ROOT = "Class/Trait/Lib";
+my %TRAIT_LIB = map { $_ => 1 } 
+    qw(
+    TEquality
+    TPrintable
+    TComparable
+    );
 
 ## ----------------------------------------------------------------------------
 
@@ -389,7 +399,13 @@ sub load_trait {
     eval { 
         debug "+ requiring ${trait}.pm";
         $debug_indent++ if DEBUG;
-        require "${trait}.pm"; 
+        if (exists $TRAIT_LIB{$trait}) {
+            debug "! ${trait} is in our trait lib, ... loading from lib";
+            require "${TRAIT_LIB_ROOT}/${trait}.pm";
+        }
+        else {
+            require "${trait}.pm"; 
+        }
         $debug_indent-- if DEBUG;
     };
     if ($@) {
@@ -1034,6 +1050,23 @@ Class::Trait uses the INIT phase of the perl compiler, which will not run under 
 
 =back
 
+=head1 TRAIT LIBRARY
+
+I have moved some of the traits in the test suite to be used outside of this, and put them in what I am calling the trait library. This trait library will hopefully become a rich set of base level traits to use when composing your own traits. Currently there are only 3 traits in there:
+
+=over 4
+
+=item * TPrintable 
+
+=item * TEquality
+
+=item * TComparable
+
+=back
+
+These can be loaded as normal traits would be loaded, Class::Trait will know where to find them. For more information about them, see their own documenation.
+
+
 =head1 DEBUGGING
 
 Class::Trait is really an experimental module. It is not ready yet to be used seriously in production systems. That said, about half of the code in this module is dedicated to formatting and printing out debug statements to STDERR when the debug flag is turned on. 
@@ -1146,13 +1179,15 @@ The class Class::Traits::Reflection gives a basic API to access to the traits us
 
 Being a relatively new concept, Traits can be difficult to digest and understand. The original papers does a pretty good job, but even they stress the usefulness of tools to help in the development and understanding of Traits. The 'debug' setting of Class::Trait gives a glut of information on every step of the process, but is only useful to a point. A Traits 'browser' is something I have been toying with, both as a command line tool and a Tk based tool. 
 
+=item B<Trait Lib>
+
+In this release I have added some pre-built traits that can be used; TEquality, TComparable, TPrintable. I want to make more of these, it will only help.
+
 =back
 
 =head1 SEE ALSO
 
 Class::Trait is an implementation of Traits as described in the the documents found on this site L<http://www.iam.unibe.ch/~scg/Research/Traits/>. In particular the paper "Traits - A Formal Model", as well as another paper on statically-typed traits (which is found here : L<http://www.cs.uchicago.edu/research/publications/techreports/TR-2003-13>). 
-
-B<Class::Trait::Base>, B<Class::Trait::Config>, B<Class::Trait::Reflection>
 
 =head1 AUTHOR
 

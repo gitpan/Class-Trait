@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::Trait.
 
+0.04 May 24, 2004
+    - Added a default Trait Library which for now only contains 
+      3 traits; TEquality, TComparable, TPrintable. See their
+      documentation for more details on them. If these names are
+      given, they are loaded from the trait's library.
+
 0.03  Wed April 28th 2004
     - made this workable with mod_perl and reduced dependence on
       the INIT block. I am not 100% happy with it yet though, so 

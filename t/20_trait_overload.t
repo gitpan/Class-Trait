@@ -132,5 +132,5 @@ ok(eq_hash(
 
 ok(eq_set(
         [ keys %{$trait->methods} ], 
-        ['stringValue', 'compositeTest', 'strVal', 'equalTo', 'notEqualTo'])
+        ['stringValue', 'compositeTest', 'strVal', 'equalTo', 'notEqualTo', 'isSameTypeAs', 'isExactly'])
     , '... this should not be empty');  

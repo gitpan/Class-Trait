@@ -6,6 +6,9 @@ lib/Class/Trait.pm
 lib/Class/Trait/Config.pm
 lib/Class/Trait/Base.pm
 lib/Class/Trait/Reflection.pm
+lib/Class/Trait/Lib/TEquality.pm
+lib/Class/Trait/Lib/TComparable.pm
+lib/Class/Trait/Lib/TPrintable.pm
 t/10_class_trait.t
 t/20_trait_overload.t
 t/30_trait_composition.t
@@ -17,12 +20,9 @@ t/test_lib/TSimple.pm
 t/test_lib/TraitTest.pm
 t/test_lib/TraitTestBase.pm
 t/test_lib/TCompositeTest.pm
-t/test_lib/TComparable.pm
-t/test_lib/TPrintable.pm
 t/test_lib/Circle.pm
 t/test_lib/TCircle.pm
 t/test_lib/TColor.pm
-t/test_lib/TEquality.pm
 t/test_lib/TGeometry.pm
 t/test_lib/TMagnitude.pm
 t/test_lib/Read.pm

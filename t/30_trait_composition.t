@@ -107,6 +107,7 @@ ok(eq_set(
         [ keys %{$trait->methods} ], 
         [
             'isSameTypeAs',
+            'isExactly',
             'setBlue',
             'area',
             'getBlue',
