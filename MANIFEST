@@ -11,6 +11,7 @@ t/20_trait_overload.t
 t/30_trait_composition.t
 t/40_Trait_Config_test.t
 t/50_Trait_SUPER_test.t
+t/60_Trait_mod_perl_test.t
 t/test_lib/BasicTrait.pm
 t/test_lib/TSimple.pm
 t/test_lib/TraitTest.pm

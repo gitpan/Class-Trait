@@ -4,7 +4,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION  = '0.02';
+our $VERSION  = '0.03';
 
 use overload ();
 use Data::Dumper;
@@ -51,7 +51,7 @@ use Class::Trait::Base;
 # save packages that need to be checked
 # for meeting requirements here
 
-my %TRAITS_TO_APPLY = ();
+my %TRAITS_TO_CHECK = ();
 
 ## ----------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ sub import {
 		debug "^ compiling/processing traits for $package";    
 		$debug_indent++ if DEBUG;    
 		apply_traits($package, compile_traits($package, @_));
-		$debug_indent-- if DEBUG;      
+		$debug_indent-- if DEBUG;                  
 	}
 }
 
@@ -94,24 +94,57 @@ sub apply_traits {
         apply_traits_to_trait($package, $composite_trait_config);
     }
     else { 
-        debug "~ application of traits for $package scheduled for INIT phase";        
-        $TRAITS_TO_APPLY{$package} = $composite_trait_config;
+        # we now apply the traits in the BEGIN phase
+        # this allows the modules to be used under
+        # mod_perl, however see the documentation for
+        # some important caveats
+        apply_traits_to_package($package, $composite_trait_config);
+        # we still do try to verify the traits in
+        # the INIT phase
+        debug "~ verification of traits for $package scheduled for INIT phase";        
+        $TRAITS_TO_CHECK{$package} = $composite_trait_config;
     }    
     $debug_indent-- if DEBUG;
     debug "< finished proccessing traits for $package";            
 }
 
-INIT {
-    debug "> applying traits to packages";
+# INIT now just runs initialize
+INIT { 
+    initialize() if scalar keys %TRAITS_TO_CHECK;    
+}
+
+# initialize checks that all the traits
+# requirements have been fufilled
+sub initialize {
+    debug "> verifiying traits in packages";
     $debug_indent++ if DEBUG;
 	my ($package, $trait);
-	while (($package, $trait) = each %TRAITS_TO_APPLY) {
-		apply_traits_to_package($package, $trait);
+	while (($package, $trait) = each %TRAITS_TO_CHECK) {
+		check_traits_in_package($package, $trait);
 	}
     $debug_indent-- if DEBUG;
-    debug "> finished applying traits to packages";        
-    debug "% TRAIT PROCESSING COMPLETE %";
-    debug "<< dumping trait cache: " . Dumper(\%CACHE);    
+    debug "> finished verifiying traits in packages";        
+}
+
+sub check_traits_in_package {
+    my ($package, $trait) = @_;
+    debug "? verifying $package fufills the requirements for $trait->{name}";
+    $debug_indent++ if DEBUG;
+    foreach my $requirement (keys %{$trait->requirements}) {
+		# if the requirement is an operator
+		# then we need to put the paren in
+		# front, as that is how overload.pm
+		# does it, this will tell us if the
+		# operator has been overloaded or not
+		$requirement = "($requirement" unless is_method_label($requirement);
+		# now check if the package fufills the
+		# requirement or not, and die if it fails
+        ($package->can($requirement)) 
+            || die "requirement ($requirement) for $trait->{name} not in $package\n";
+		# if it doesn't fail we can go on to the next   
+		debug "+ requirement ($requirement) for $trait->{name} fufilled in $package";
+    }
+    $debug_indent-- if DEBUG;  
 }
 
 ## ----------------------------------------------------------------------------
@@ -122,15 +155,19 @@ sub apply_traits_to_package {
     my ($package, $trait) = @_;
     debug "@ applying trait ($trait->{name}) to package ($package)";
     $debug_indent++ if DEBUG;
-    _verify_requirements($package, $trait);
+    # stubing the requirements currently
+    # produces an warning about subroutine
+    # redefinition. So we are leaving this
+    # out for now.
+#    _stub_requirements($package, $trait);
     _add_trait_methods($package, $trait);
-    _add_trait_overloads($package, $trait);    
+    _add_trait_overloads($package, $trait);   
     $debug_indent-- if DEBUG;
 	# now storing the trait in the package so that 
 	# it can be accessable through reflection. 
     debug "^ storing reference to traits in $package";
     no strict 'refs';
-    ${"${package}::TRAITS"} = $trait;
+    *{"${package}::TRAITS"} = \$trait;
 	*{"${package}::is"}	= \&is;
 }
 
@@ -157,22 +194,31 @@ sub _recursive_is {
 # private methods used by trait application
 # -----------------------------------------------
 
-sub _verify_requirements {
+# NOTE:
+# stubing the requirements currently
+# produces an warning about subroutine
+# redefinition. So we are leaving this
+# out for now.
+sub _stub_requirements {
     my ($package, $trait) = @_;
     debug "? verifying $package fufills the requirements for $trait->{name}";
-    $debug_indent++ if DEBUG;
+	# we are messing with symbol tables so
+	# turn this off for now
+	$debug_indent++ if DEBUG;
+	no strict 'refs';
     foreach my $requirement (keys %{$trait->requirements}) {
 		# if the requirement is an operator
 		# then we need to put the paren in
 		# front, as that is how overload.pm
 		# does it, this will tell us if the
 		# operator has been overloaded or not
-		$requirement = "($requirement" unless is_method_label($requirement);
-		# now check if the package fufills the
-		# requirement or not, and die if it fails
-        ($package->can($requirement)) || die "requirement ($requirement) for $trait->{name} not in $package\n";
-		# if it doesn't fail we can go on to the next   
-		debug "+ requirement ($requirement) for $trait->{name} fufilled in $package";
+        $requirement = "($requirement" unless is_method_label($requirement);
+		# place a stub routine in place of the 
+        # requirement, perl will fill this in laters
+        # with the real one
+        *{"${package}::${requirement}"} = sub { die "trait requirement ($requirement) not implemented\n" };
+        # report the stubbing
+		debug "+ requirement ($requirement) for $trait->{name} stubbed in $package";
     }
     $debug_indent-- if DEBUG;    
 }
@@ -186,8 +232,15 @@ sub _add_trait_methods {
 	no strict 'refs';
 	my ($method_label, $method);
 	while (($method_label, $method)	= each %{$trait->methods}) {
-		# if the method is not defined inside
-		# the local class's symbol table then
+        # NOTE:
+        # we allow this routine to check our
+        # package for an implemented method
+        # since it is possible that some other
+        # package implemented it before traits
+        # did. It is however unlikely. We know
+        # too that all methods will be installed, and
+        # that the local implementations will
+        # overwrite these.
 		unless (defined &{"${package}::$method_label"}) {
 			# we add it ....
 			debug "+ adding method ($method_label) into $package";
@@ -213,6 +266,11 @@ sub _add_trait_overloads {
 	my %overloads;
 	my ($operator, $method_label); 
 	while (($operator, $method_label) = each %{$trait->overloads}) {
+        # NOTE:
+        # we allow this routine to check our
+        # package for an implemented operator
+        # since it is possible that "overload"
+        # was called before the triaits
 		unless (defined &{"${package}::($operator"}) {
 			debug "+ adding operator ($operator) into $package";
 			$overloads{$operator} = $method_label;		
@@ -341,7 +399,8 @@ sub load_trait {
     # otherwise ...
     
     # check to make sure it is the proper type
-    $trait->isa('Class::Trait::Base') || die "$trait is not a proper trait (inherits from Class::Trait::Base)\n";
+    $trait->isa('Class::Trait::Base') 
+        || die "$trait is not a proper trait (inherits from Class::Trait::Base)\n";
 
     # initialize our trait configuration
     my $trait_config = Class::Trait::Config->new();
@@ -449,7 +508,8 @@ sub _get_trait_requirements {
     # and symbol refs, so turn strict off in 
     # its context
     no strict 'refs';    
-    (defined $trait_config->name) || die "Trait must be loaded first before information can be gathered\n";
+    (defined $trait_config->name) 
+        || die "Trait must be loaded first before information can be gathered\n";
     my $trait = $trait_config->name;
     debug "< getting requirements for ${trait}";    
     # get any requirements in the trait
@@ -465,7 +525,8 @@ sub _get_trait_methods {
 	# and symbol refs, so turn strict off in 
 	# its context
 	no strict 'refs';	
-	(defined $trait_config->name) || die "Trait must be loaded first before information can be gathered\n";
+	(defined $trait_config->name) 
+        || die "Trait must be loaded first before information can be gathered\n";
 	my $trait = $trait_config->name;
 	debug "< getting methods for ${trait}";	
 	# NOTE: read the below expression from bottom to top
@@ -491,7 +552,8 @@ sub _get_trait_overloads {
     # and symbol refs, so turn strict off in 
     # its context
     no strict 'refs';    
-    (defined $trait_config->name) || die "Trait must be loaded first before information can be gathered\n";
+    (defined $trait_config->name) 
+        || die "Trait must be loaded first before information can be gathered\n";
     my $trait = $trait_config->name;
     debug "< getting overloads for ${trait}";    
     # get the overload parameter hash
@@ -762,7 +824,6 @@ sub are_methods_equal {
 sub is_method_label { $_[0] =~ /[a-zA-Z_][a-zA-Z_0-9]+/ }
 sub is_operator { not is_method_label(shift) }
 
-
 1;
 
 __END__
@@ -963,6 +1024,16 @@ Class::Trait will export this method into any object which uses traits. By calli
 
 =back
 
+=head1 METHODS
+
+=over 4
+
+=item B<initialize>
+
+Class::Trait uses the INIT phase of the perl compiler, which will not run under mod_perl or if a package is loaded at runtime with C<require>. In order to insure that all traits a properly verified, this method must be called. However, you may still use Class::Trait without doing this, for more details see the L<CAVEAT> section.
+
+=back
+
 =head1 DEBUGGING
 
 Class::Trait is really an experimental module. It is not ready yet to be used seriously in production systems. That said, about half of the code in this module is dedicated to formatting and printing out debug statements to STDERR when the debug flag is turned on. 
@@ -973,17 +1044,69 @@ The debug statements prints out pretty much every action taken during the traits
 
 =head1 CAVEAT
 
-Currently due to our use of the INIT phase of the perl compiler, this will not work with mod_perl. This is on the L<TO DO> list though. I am open to any suggestions on how I might go about fixing this.
+This module uses the INIT phase of the perl compiler to do a final check of the of the traits. Mostly it checkes that the traits requirements are fufilled and that your class is safe to use. This presents a problem in two specific cases.
+
+=over 5
+
+=item B<Under mod_perl>
+
+mod_perl loads B<all> code through some form of eval. It does this I<after> the normal compilation phases are complete. This means we cannot run INIT.
+
+=item B<Runtime loading>
+
+If you load code with C<require> or C<eval "use Module"> the result is the same as with mod_perl. It is post-compilation, and the INIT phase cannot be run.
+
+=back
+
+However, this does not mean you cannot use Class::Trait in these two scenarios. Class::Trait will just not check its requirements, these routines will simply throw an error if called.
+
+The best way to avoid this is to call the class method C<initialize>, after you have loaded all your classes which utilize traits, or after you specifically load a class with traits at runtime. 
+
+  Class::Trait->initialize();
+
+This will result in the final checking over of your classes and traits, and throw an exception if there is a problem.
+
+Some people may not object to this not-so-strict behavior, the smalltalk implementation of traits, written by the authors of the original papers behaves in a similar way. Here is a quote from a discussion I had with Nathanael Scharli, about the Smalltalk versions behavior:
+
+    Well, in Squeak (as in the other Smalltalk dialects), the difference
+    between runtime and compile time is not as clear as in most other
+    programming languages. The reason for this is that programming in
+    Smalltalk is very interactive and there is no explicit compile phase.
+    This means that whenever a Smalltalk programmer adds or modifies a
+    method, it gets immediately (and automatically) compiled and installed
+    in the class. (Since Smalltalk is not statically typed, there are no
+    type checks performed at compile time, and this is why compiling a
+    method simply means creating and installing the byte-code of that
+    method).
+    
+    However, I actually like if the programmer gets as much static
+    information bout the code as possible. Therefore, my implementation
+    automaticelly checks the open requirements whenever a method gets
+    added/removed/modified. This means that in my implementation, the
+    programmer gets interactive feedback about which requirements are still
+    to be satisfied while he is composing the traits together. In
+    particular, I also indicate when all the requirements of a class/trait
+    are fulfilled. In case of classes, this means for the programmer that it
+    is now possible to actually use the class without running into open
+    requirements.
+    
+    However, according to the Smalltalk tradition, I do not prevent a
+    programmer from instantiating a class that still has open requirements.
+    (This can be useful if a programmer wants to test a certain
+    functionality of a class before it is actually complete). Of course,
+    there is then always the risk that there will be a runtime error because
+    of an unsatisfied requirement.
+    
+    As a summary, I would say that my implementation of traits keeps track
+    of the requirements at compile time. However, if an incomplete class
+    (i.e., a class with open requirements) is instantiated, unfulfilled
+    requirements result in a runtime error when they are called. 
 
 =head1 TO DO
 
 I consider this implementation of Traits to be pretty much feature complete in terms of the description found in the papers. Of course improvements can always be made, below is a list of items on my to do list:
 
 =over 4
-
-=item B<Make this work with mod_perl>
-
-Currently due to our use of the INIT phase of the perl compiler, this will not work with mod_perl. My only thought is to use the PerlChildInit handler, but I don't currently have the time to investigate and test this though.
 
 =item B<Tests>
 
@@ -1006,6 +1129,14 @@ The pod coverage is really low in Class::Trait since virtually none of the metho
 The branch coverage in Class::Trait::Base is somwhat difficult. Those are mostly rare error conditions and edge cases, none the less I would still like to test them.
 
 Mostly what remains that I would like to test is the error cases. I need to test that Class::Traits blows up in the places I expect it to.
+
+=item B<Improve mod_perl/INIT phase solution>
+
+Currently the work around for the mod_perl/INIT phase issue (see L<CAVEAT>) is to just let the unfufilled requirement routines fail normally with perl. Maybe I am a control freak, but I would like to be able to make these unfufilled methods throw my own exceptions instead. My solution was to make a bunch of stub routines for all the requirements. The problem is that I get a bunch of "subroutine redeined" warnings coming up when the local method definitions are installed by perl normally. 
+
+Also, since we are installing our methods and our overloads into the class in the BEGIN phase now, it is possible that we will get subroutine redefinition errors if there is a local implementation of a method or operator. This is somewhat rare, so I am not as concerned about that now.
+
+Ideally I would like to find a way around the INIT issue, which will still have the elegance of using INIT.
 
 =item B<Reflection API>
 

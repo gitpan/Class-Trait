@@ -1,5 +1,10 @@
 Revision history for Perl extension Class::Trait.
 
+0.03  Wed April 28th 2004
+    - made this workable with mod_perl and reduced dependence on
+      the INIT block. I am not 100% happy with it yet though, so 
+      there will be further changes coming.
+
 0.02  Mon April 19th 2004
     - Made "is" method search depth first down the Trait tree
       instead of just checking the top level trait and subtraits.

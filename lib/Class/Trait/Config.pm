@@ -4,7 +4,7 @@ package Class::Trait::Config;
 use strict;
 use warnings;
 
-our $VERSION  = '0.02';
+our $VERSION  = '0.03';
 
 # we are going for a very struct-like class here
 # to try and keep the syntactical noise down.
