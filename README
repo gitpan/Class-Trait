@@ -1,4 +1,4 @@
-Class::Traits version 0.01
+Class::Trait version 0.02
 =====================
 
 INSTALLATION
@@ -12,14 +12,13 @@ To install this module type the following:
 
 DEPENDENCIES
 
-This module requires these other modules and libraries:
-
-	overload
-	Data::Dumper
+This module requires no other modules and libraries outside of the core modules
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2004 Stevan Little
+Copyright (C) 2004 Infinity Interactive, Inc.
+
+http://www.iinteractive.com
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

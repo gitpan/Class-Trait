@@ -1,15 +1,18 @@
+
 package TraitTest;
-use base qw(TraitTestBase);    
+
 use strict;
 use warnings;
 
-use Class::Trait 
+use base qw(TraitTestBase);    
+
+use Class::Trait (
     TCompositeTest => { 
         alias   => { stringValue => "strVal" },
         exclude => [ "stringValue" ]
     },
     "TPrintable"
-    ;
+    );
     
 
 sub compare {
@@ -22,7 +25,7 @@ sub toString {
 	return sprintf("%.3f", $self->SUPER::toString()) . " (overridden stringification)";
 }
 
-sub compositeTestRequirement {}
+sub compositeTestRequirement { return "Composite Test Requirement" }
 
 1;
 

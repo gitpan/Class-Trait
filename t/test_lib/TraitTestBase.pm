@@ -1,4 +1,5 @@
 package TraitTestBase;
+
 use strict;
 use warnings;
 

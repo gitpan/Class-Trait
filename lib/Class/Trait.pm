@@ -1,9 +1,10 @@
 
 package Class::Trait;
-$VERSION  = '0.01';
 
 use strict;
 use warnings;
+
+our $VERSION  = '0.02';
 
 use overload ();
 use Data::Dumper;
@@ -27,7 +28,7 @@ my $debug_indent = 0;
         return unless DEBUG;
         # otherwise debug
         my $formatted_debug_line_number = sprintf("%03d", $debug_line_number);
-        print "debug=($formatted_debug_line_number) ", ("    " x $debug_indent), @_, "\n";
+        print STDERR "debug=($formatted_debug_line_number) ", ("    " x $debug_indent), @_, "\n";
         $debug_line_number++;
     }
 }
@@ -42,14 +43,10 @@ my $debug_indent = 0;
 my %CACHE = ();
 
 # load the config class
-
 use Class::Trait::Config;
 
 # base class for traits
-
 use Class::Trait::Base;
-
-my $TRAIT_BASE = 'Class::Trait::Base';
 
 # save packages that need to be checked
 # for meeting requirements here
@@ -78,14 +75,14 @@ sub import {
 		no strict 'refs';
 		# push our base into the front 
 		# of the ISA list
-		unshift @{"${package}::ISA"} => $TRAIT_BASE;
+		unshift @{"${package}::ISA"} => 'Class::Trait::Base';
 	}
 	# otherwise we are using traits
 	else {
 		debug "^ compiling/processing traits for $package";    
 		$debug_indent++ if DEBUG;    
 		apply_traits($package, compile_traits($package, @_));
-		$debug_indent-- if DEBUG;
+		$debug_indent-- if DEBUG;      
 	}
 }
 
@@ -93,7 +90,7 @@ sub apply_traits {
     my ($package, $composite_trait_config) = @_;
     debug "> proccessing traits for $package";        
     $debug_indent++ if DEBUG;
-    if ($package->isa($TRAIT_BASE)) {
+    if ($package->isa('Class::Trait::Base')) {
         apply_traits_to_trait($package, $composite_trait_config);
     }
     else { 
@@ -133,7 +130,27 @@ sub apply_traits_to_package {
 	# it can be accessable through reflection. 
     debug "^ storing reference to traits in $package";
     no strict 'refs';
-    ${"${package}::TRAITS"} = $trait;	
+    ${"${package}::TRAITS"} = $trait;
+	*{"${package}::is"}	= \&is;
+}
+
+sub is {
+    my ($class, $trait_name) = @_;
+    $class = ref($class) || $class;
+    no strict 'refs';
+    return _recursive_is(${"${class}::TRAITS"}, $trait_name);  
+}
+
+sub _recursive_is {
+    my ($trait, $trait_name) = @_;
+    return 1 if ($trait->name eq $trait_name);    
+	foreach my $sub_trait_name (@{$trait->sub_traits}) {
+        # if its on the second level, then we are here
+        return 1 if ($sub_trait_name eq $trait_name);
+        # if not, then we need to descend lower
+        return 1 if (_recursive_is($CACHE{$sub_trait_name}, $trait_name));
+	} 
+    return 0;
 }
 
 # -----------------------------------------------
@@ -324,7 +341,7 @@ sub load_trait {
     # otherwise ...
     
     # check to make sure it is the proper type
-    $trait->isa($TRAIT_BASE) || die "$trait is not a proper trait (inherits from $TRAIT_BASE)\n";
+    $trait->isa('Class::Trait::Base') || die "$trait is not a proper trait (inherits from Class::Trait::Base)\n";
 
     # initialize our trait configuration
     my $trait_config = Class::Trait::Config->new();
@@ -336,7 +353,7 @@ sub load_trait {
     
     no strict 'refs';
     # if this trait has sub-traits, we need to process them.
-    if ($trait->isa($TRAIT_BASE) && defined %{"${trait}::TRAITS"}) {
+    if ($trait->isa('Class::Trait::Base') && defined %{"${trait}::TRAITS"}) {
         debug "! found sub-traits in trait ($trait)";
         $debug_indent++ if DEBUG;
         $trait_config = _override_trait(\%{"${trait}::TRAITS"}, $trait_config);
@@ -775,10 +792,10 @@ Class::Trait - An implementation of Traits in Perl
                     exclude => [ "stringValue" ]
                 },
             );
-			
+            
     # loading two traits and performing
     # a trait operation (exclude) on one 
-	# module to avoid method conflicts
+    # module to avoid method conflicts
     use Class::Trait 
             'TComparable' => {
                     # exclude the basic equality method
@@ -787,8 +804,8 @@ Class::Trait - An implementation of Traits in Perl
                     exclude => [ "notEqualTo", "equalTo" ]
                 },
             'TEquality' # <- use equalTo and notEqualTo from here
-             );			
-    		
+            );			
+            
     # when building a trait, you need it
     # to inherit from the trait meta/base-class
     # so do this ...
@@ -930,15 +947,65 @@ Operator conflicts also result in the exclusion of the operator from the composi
 
 One trait may satisfy the requirements of another trait when they are combined into a composite trait. This results in the removal of the requirement from the requirements array in the composite trait. 
 
-=head1 TO DO
-
-Being the first release of this module, there is always something left undone. I consider the implementation of Traits to be pretty much feature complete in terms of the description found in the papers. Of course improvements can always be made, below is a list of items on my to do list:
+=head1 EXPORTS
 
 =over 4
 
-=item B<Tests, Tests, Tests>
+=item B<$TRAITS>
 
-At this point, there are only 37 automated tests included in this release. Of course with something as complex as Traits, this is nowhere near enough. But being that Traits are complex, creating tests for it is not easy. I invite anyone interested in helping this module along to help write tests or even just help plan them. 
+While not really exported, Class::Trait leaves the actual Class::Trait::Config object applied to the package stored as scalar in the package variable at C<$TRAITS>. 
+
+=item B<is>
+
+Class::Trait will export this method into any object which uses traits. By calling this method you can query the kind of traits the object has implemented. The method works much like the perl C<isa> method in that it performs a depth-first search of the traits hierarchy and  returns true (1) if the object implements the trait, and false (0) otherwise.
+
+  $my_object_with_traits->is('TPrintable');
+
+=back
+
+=head1 DEBUGGING
+
+Class::Trait is really an experimental module. It is not ready yet to be used seriously in production systems. That said, about half of the code in this module is dedicated to formatting and printing out debug statements to STDERR when the debug flag is turned on. 
+
+  use Class::Trait 'debug';
+
+The debug statements prints out pretty much every action taken during the traits compilation process and on occasion dump out B<Data::Dumper> output of trait structures. If you are at all interested in traits or in this module, I recommend doing this, it will give you lots of insight as to what is going on behind the scences.
+
+=head1 CAVEAT
+
+Currently due to our use of the INIT phase of the perl compiler, this will not work with mod_perl. This is on the L<TO DO> list though. I am open to any suggestions on how I might go about fixing this.
+
+=head1 TO DO
+
+I consider this implementation of Traits to be pretty much feature complete in terms of the description found in the papers. Of course improvements can always be made, below is a list of items on my to do list:
+
+=over 4
+
+=item B<Make this work with mod_perl>
+
+Currently due to our use of the INIT phase of the perl compiler, this will not work with mod_perl. My only thought is to use the PerlChildInit handler, but I don't currently have the time to investigate and test this though.
+
+=item B<Tests>
+
+I have revamped the test suite alot this time around. But it could always use more. Currently we have 158 tests in the suite. I ran it through Devel::Cover and found that the coverage is pretty good, but can use some help:
+
+ ---------------------------- ------ ------ ------ ------ ------ ------ ------
+ File                           stmt branch   cond    sub    pod   time  total
+ ---------------------------- ------ ------ ------ ------ ------ ------ ------
+ /Class/Trait.pm                91.4   58.6   50.0   95.7    6.2    8.9   80.0
+ /Class/Trait/Base.pm           90.5   50.0    n/a  100.0    n/a    0.1   83.9
+ /Class/Trait/Config.pm        100.0    n/a    n/a  100.0  100.0    2.9  100.0
+ ---------------------------- ------ ------ ------ ------ ------ ------ ------
+
+Obviously Class::Trait::Config is fine.
+
+To start with Class::Trait::Reflection is not even tested at all. I am not totally happy with this API yet, so I am avoiding doing this for now.
+
+The pod coverage is really low in Class::Trait since virtually none of the methods are documented (as they are not public and have no need to be documented). The branch coverage is low too because of all the debug statements that are not getting execute (since we do not have DEBUG on). 
+
+The branch coverage in Class::Trait::Base is somwhat difficult. Those are mostly rare error conditions and edge cases, none the less I would still like to test them.
+
+Mostly what remains that I would like to test is the error cases. I need to test that Class::Traits blows up in the places I expect it to.
 
 =item B<Reflection API>
 
@@ -958,14 +1025,17 @@ B<Class::Trait::Base>, B<Class::Trait::Config>, B<Class::Trait::Reflection>
 
 =head1 AUTHOR
 
-Stevan Little E<lt>stevan_little@yahoo.comE<gt>
+stevan little, E<lt>stevan@iinteractive.comE<gt>
 
 The development of this module was initially begun by Curtis "Ovid" Poe, E<lt>poec@yahoo.comE<gt>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Stevan Little.
+Copyright 2004 by Infinity Interactive, Inc.
 
-This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself. 
+L<http://www.iinteractive.com>
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself. 
 
 =cut

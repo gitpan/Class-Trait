@@ -12,7 +12,6 @@ our %OVERLOADS = (
     '<=>' => "compare"
 );
 
-
 our @REQUIRES = qw(compare);
 
 sub equalTo {

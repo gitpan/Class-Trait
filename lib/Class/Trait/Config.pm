@@ -1,9 +1,10 @@
 
 package Class::Trait::Config;
-$VERSION  = '0.01';
 
 use strict;
 use warnings;
+
+our $VERSION  = '0.02';
 
 # we are going for a very struct-like class here
 # to try and keep the syntactical noise down.
@@ -15,7 +16,7 @@ use warnings;
 # effectively sealed.
 sub new {
 	return bless {
-			name         => undef,
+			name         => "",
 			sub_traits   => [],
 			requirements => {},
 			methods      => {},
@@ -60,7 +61,7 @@ This package is used internally by Class::Trait to store Trait configuration inf
 
 =head1 DESCRIPTION
 
-This class is a intentionally struct-like. It is meant to help encapsulate the Trait configuration information in a clean easy to access way.
+This class is a intentionally very C-struct-like. It is meant to help encapsulate the Trait configuration information in a clean easy to access way.
 
 This class is effectively sealed. It is not meant to be extended, only to be used. 
 
@@ -108,11 +109,13 @@ B<Class::Trait>, B<Class::Trait::Reflection>
 
 =head1 AUTHOR
 
-Stevan Little E<lt>stevan_little@yahoo.comE<gt>
+Stevan Little E<lt>stevan@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Stevan Little
+Copyright 2004 by Infinity Interactive, Inc.
+
+L<http://www.iinteractive.com> 
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

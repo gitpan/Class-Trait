@@ -5,11 +5,6 @@ WriteMakefile(
     'NAME'		    => 'Class::Trait',
     'VERSION_FROM'	=> 'lib/Class/Trait.pm',
     'PREREQ_PM'		=> {
-        'Test::More'      => .47,
-        'Test::Exception' => .15,
-    },
-#    ($] >= 5.005
-#        ? (ABSTRACT_FROM => 'lib/Class/Trait.pm', AUTHOR => 'Stevan Little')
-#        : ()
-#    ),
+        'Test::More'      => .47
+    }
 );

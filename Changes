@@ -1,5 +1,12 @@
 Revision history for Perl extension Class::Trait.
 
+0.02  Mon April 19th 2004
+    - Made "is" method search depth first down the Trait tree
+      instead of just checking the top level trait and subtraits.
+    - Spruced up the test suite alot, adding about 121 new tests.
+    - Cleaned up some documentation issues. And updated anything 
+      that needed it.
+
 0.01  Sun Mar 7 08:09:00 EST 2004
 	- first release of Class::Trait 0.01
 

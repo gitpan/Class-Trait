@@ -1,9 +1,10 @@
 
 package Class::Trait::Base;
-$VERSION  = '0.01';
 
 use strict;
 use warnings;
+
+our $VERSION  = '0.02';
 
 # all that is here is an AUTOLOAD method 
 # which is used to fix the SUPER call method
@@ -72,11 +73,13 @@ B<Class::Trait>, B<Class::Trait::Config>
 
 =head1 AUTHOR
 
-Stevan Little E<lt>stevan_little@yahoo.comE<gt>
+Stevan Little E<lt>stevan@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Stevan Little
+Copyright 2004 by Infinity Interactive, Inc.
+
+L<http://www.iinteractive.com> 
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

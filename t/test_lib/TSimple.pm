@@ -5,8 +5,8 @@ use warnings;
 
 use Class::Trait 'base';
 
-sub name {
-    return __PACKAGE__;
+sub getName {
+    return "TSimple";
 }
 
 1;
