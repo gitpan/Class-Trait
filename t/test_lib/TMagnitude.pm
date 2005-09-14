@@ -9,9 +9,9 @@ use Class::Trait 'base';
 use Class::Trait ("TEquality");
 
 our %OVERLOADS = (
-	'<' => "lessThan",
+	'<'  => "lessThan",
 	'<=' => "lessThanOrEqualTo",
-	'>' => "greaterThan",
+	'>'  => "greaterThan",
 	'>=' => "greaterThanOrEqualTo",
 	);
 	

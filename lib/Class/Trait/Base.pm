@@ -4,7 +4,7 @@ package Class::Trait::Base;
 use strict;
 use warnings;
 
-our $VERSION  = '0.04';
+our $VERSION  = '0.05';
 
 # all that is here is an AUTOLOAD method 
 # which is used to fix the SUPER call method
@@ -14,40 +14,23 @@ our $VERSION  = '0.04';
 # trait is flattened and not before.
 
 sub AUTOLOAD {
-	my $auto_load = our $AUTOLOAD;
-	# we dont want to mess with DESTORY
-	return if ($auto_load =~ m/DESTROY/);
-	# otherwise get our arguemnts
-	my ($self, @args) = @_;
-	# if someone is attempting a call to 
-	# SUPER, then we need to handle this.
-	if ($auto_load =~ /SUPER::/) {
-		# lets get the intended method name
-		my ($method) = $auto_load =~ /SUPER::(.*)/;
-		no strict 'refs';
-		# loop though the ISA, although triats are
-		# meant to be used within a single inheritance
-		# world, so in theory we should not need to
-		# do this, and can rely on the fact there
-		# is only one base class in the ISA. But the 
-		# reality is that we cannot enforce the
-		# single inheritance rule, and therefore
-		# we loop.
-		foreach my $base (@{ ref($self) . "::ISA"}) {
-			# if we found the method
-			if ($base->can($method)) {
-				# then we should use it and 
-				# return the result
-				return &{"${base}::$method"}($self, @args);
-			}
-		}
-	}
-	# if it was not a call to SUPER, then 
-	# we need to let this fail, as it is
-	# not our problem
-	die "undefined method ($auto_load) in trait\n";
+    my $auto_load = our $AUTOLOAD;
+    # we dont want to mess with DESTORY
+    return if ($auto_load =~ m/DESTROY/);
+    # if someone is attempting a call to 
+    # SUPER, then we need to handle this.
+    if (my($super_method) = $auto_load =~ /(SUPER::.*)/) {
+        # get our arguemnts
+        my ($self, @args) = @_;
+        # lets get the intended method name
+        $super_method = scalar(caller 1) . '::'. $super_method;
+        return $self->$super_method(@args); 
+    }
+    # if it was not a call to SUPER, then 
+    # we need to let this fail, as it is
+    # not our problem
+    die "undefined method ($auto_load) in trait\n";
 }
-
 
 1;
 
@@ -77,7 +60,7 @@ Stevan Little E<lt>stevan@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Infinity Interactive, Inc.
+Copyright 2004, 2005 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com> 
 

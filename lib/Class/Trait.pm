@@ -4,10 +4,11 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION  = '0.04';
+our $VERSION  = '0.05';
 
 use overload ();
 use Data::Dumper;
+use File::Spec ();
 
 ## ----------------------------------------------------------------------------
 ## Debugging functions
@@ -55,7 +56,7 @@ my %TRAITS_TO_CHECK = ();
 
 # these traits are supplied "for free"
 
-my $TRAIT_LIB_ROOT = "Class/Trait/Lib";
+my $TRAIT_LIB_ROOT = File::Spec->catfile qw(Class Trait Lib);
 my %TRAIT_LIB = map { $_ => 1 } 
     qw(
     TEquality
@@ -254,7 +255,11 @@ sub _add_trait_methods {
 		unless (defined &{"${package}::$method_label"}) {
 			# we add it ....
 			debug "+ adding method ($method_label) into $package";
-			*{"${package}::$method_label"} = $method;
+			#*{"${package}::$method_label"} = $method;
+			eval qq{
+                package $package;   
+                sub $method_label { $method(\@_) }
+            };
 		}
 		else {
 			# otherwise we let the local class's
@@ -273,7 +278,7 @@ sub _add_trait_overloads {
 	# defined in the local class and build a 
 	# temporary set of overloads to apply.
 	$debug_indent++ if DEBUG;	
-	my %overloads;
+	my %overloads = (fallback => 1);
 	my ($operator, $method_label); 
 	while (($operator, $method_label) = each %{$trait->overloads}) {
         # NOTE:
@@ -396,18 +401,19 @@ sub load_trait {
     $debug_indent++ if DEBUG;
     
     # load the trait ...
-    eval { 
-        debug "+ requiring ${trait}.pm";
-        $debug_indent++ if DEBUG;
-        if (exists $TRAIT_LIB{$trait}) {
-            debug "! ${trait} is in our trait lib, ... loading from lib";
-            require "${TRAIT_LIB_ROOT}/${trait}.pm";
-        }
-        else {
-            require "${trait}.pm"; 
-        }
-        $debug_indent-- if DEBUG;
-    };
+    debug "+ requiring ${trait}.pm";
+    $debug_indent++ if DEBUG;
+    if (exists $TRAIT_LIB{$trait}) {
+        debug "! ${trait} is in our trait lib, ... loading from lib";
+        eval {
+            require File::Spec->catfile($TRAIT_LIB_ROOT, "${trait}.pm");
+        };
+    }
+    else {
+        #require "${trait}.pm";
+        eval "require ${trait}"; 
+    }
+    $debug_indent-- if DEBUG;
     if ($@) {
         die "Trait ($trait) could not be found : $@\n";
     }
@@ -548,7 +554,7 @@ sub _get_trait_methods {
 	# NOTE: read the below expression from bottom to top
 	$trait_config->methods = {
 			# and stash the label and method (code ref) in a hash
-			map 	{ $_ => \&{"${trait}::$_"} 	} 
+			map     { $_ => "${trait}::$_"  }  
 			# remove all but the methods ...
 			grep 	{ 
 					# make sure no-one tried to implement DESTROY or AUTOLAOD 
@@ -830,10 +836,11 @@ sub _check_requirements {
 
 sub are_methods_equal {
     my ($method_1, $method_2) = @_;
+    return ($method_1 eq $method_2) ? 1: 0;
     # make sure we are given proper code refs 
-    (ref($method_1) eq "CODE" && ref($method_2) eq "CODE") || die "are_methods_equal not called with methods\n";
+#    (ref($method_1) eq "CODE" && ref($method_2) eq "CODE") || die "are_methods_equal not called with methods\n";
     # then decide if they are the same method (same address)
-    return ("$method_1" eq "$method_2") ? 1 : 0;
+#    return ("$method_1" eq "$method_2") ? 1 : 0;
 }
 
 # short quick predicate functions
@@ -989,7 +996,7 @@ This excludes a method from inclusion in the class which is using the trait. It 
 
 Aliasing is not renaming or redefining, it does not remove the old method, but instead just introduces another label for that method. The old method label can be overridden or excluded without affecting the new method label. 
 
-One special note is that aliasing does move any entry in the overloaded operators to use the new method name, rather than the new method name. This is done since many times aliasing is used in conjunction with exclusion to pre-resolve conflicts. This avoids the orphaning of the operator. 
+One special note is that aliasing does move any entry in the overloaded operators to use the new method name, rather than the old method name. This is done since many times aliasing is used in conjunction with exclusion to pre-resolve conflicts. This avoids the orphaning of the operator. 
 
 =head3 Summation
 
@@ -1185,6 +1192,22 @@ In this release I have added some pre-built traits that can be used; TEquality, 
 
 =back
 
+=head1 ACKNOWLEDGEMENTS
+
+=over 4
+
+=item Thanks to Curtis "Ovid" Poe for the initial idea and code for this module.
+
+=item Thanks to the Nathanael Scharli and the Traits research group for answering some of my questions.
+
+=item Thanks to Yuval Kogman for spotting the problem with loading traits with :: in them. Thanks to Curtis "Ovid" Poe for bringing it up again, and prompting me to release the fix.
+
+=item Thanks to Roman Daniel for fixing SUPER:: handling.
+
+=item 
+
+=back
+
 =head1 SEE ALSO
 
 Class::Trait is an implementation of Traits as described in the the documents found on this site L<http://www.iam.unibe.ch/~scg/Research/Traits/>. In particular the paper "Traits - A Formal Model", as well as another paper on statically-typed traits (which is found here : L<http://www.cs.uchicago.edu/research/publications/techreports/TR-2003-13>). 
@@ -1197,7 +1220,7 @@ The development of this module was initially begun by Curtis "Ovid" Poe, E<lt>po
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Infinity Interactive, Inc.
+Copyright 2004, 2005 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com>
 

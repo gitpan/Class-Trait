@@ -1,5 +1,18 @@
 Revision history for Perl extension Class::Trait.
 
+0.05 Sept. 14, 2005
+    - fixed a bug in TEquality::isExactly
+    - fixed Class::Trait::Reflection, it was loading Class::Trait
+      in the wrong way
+    - fixed path handling for Class::Trait, now uses File::Spec to
+      create cross platform paths.
+    - fixed the loading of traits with :: in them, this used to fail
+           use Class::Trait qw(My::Trait);
+      it works now. Thanks to Yuval Kogman <nothingmuch@woobling.org>
+      for finding the issue.
+    - SUPER:: handling now dispatches properly. Thanks to 
+      Roman Daniel for the code and tests.
+
 0.04 May 24, 2004
     - Added a default Trait Library which for now only contains 
       3 traits; TEquality, TComparable, TPrintable. See their

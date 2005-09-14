@@ -5,11 +5,11 @@ use strict;
 use warnings;
 
 our $VERSION = '0.01';
-
-use overload ();
 	
 use Class::Trait 'base';    
     
+use overload (); # we need a method from overload	
+	
 ## overload operator
 
 our %OVERLOADS = ('""' => "toString");
@@ -54,6 +54,8 @@ This method should return the stringified object.
 
 =item B<"">
 
+This operator call the C<toString> method to stringify the object.
+
 =back
 
 =head1 METHODS
@@ -72,7 +74,7 @@ Stevan Little E<lt>stevan@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Infinity Interactive, Inc.
+Copyright 2004, 2005 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com> 
 

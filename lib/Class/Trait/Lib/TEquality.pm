@@ -4,7 +4,7 @@ package TEquality;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Class::Trait 'base';
 
@@ -36,8 +36,6 @@ sub isSameTypeAs {
 # the object's memory address. 
 sub isExactly {
 	my ($self, $canidate) = @_;
-	(defined($canidate) && ref($canidate) && $canidate->is("TComparable")) 
-        || die "Insufficuent Arguments : you must compare exactness to another TComparable object";
 	# $canidate must also be a Comparable object, 
 	# otherwise there is no way they can be the same.
 	# Along the same veins, we can check very quickly 
@@ -117,7 +115,7 @@ Stevan Little E<lt>stevan@iinteractive.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004 by Infinity Interactive, Inc.
+Copyright 2004, 2005 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com> 
 

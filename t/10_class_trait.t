@@ -52,5 +52,5 @@ ok(eq_hash($trait->conflicts, {}), '... both should be empty');
 
 can_ok($trait, 'methods');
 is(ref($trait->methods), "HASH", '... our methods is an hash ref');
-ok(eq_hash($trait->methods, { "getName" => \&TSimple::getName }), '... both should NOT be empty');
+ok(eq_hash($trait->methods, { "getName" => 'TSimple::getName' }), '... both should NOT be empty');
 
