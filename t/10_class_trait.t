@@ -15,7 +15,7 @@ use BasicTrait;
 can_ok(BasicTrait => 'getName');
 is(BasicTrait->getName(), 'TSimple', '... and it should have the method from the trait');
 
-ok(BasicTrait->is("TSimple"), '.. BasicTrait is TSimple');
+ok(BasicTrait->does("TSimple"), '.. BasicTrait is TSimple');
 
 ok(exists($BasicTrait::{"TRAITS"}), '... the $TRAITS are properly stored');
 

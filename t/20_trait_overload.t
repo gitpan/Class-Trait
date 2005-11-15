@@ -25,13 +25,13 @@ isa_ok($trait_1, 'TraitTestBase');
 isa_ok($trait_2, 'TraitTest');
 isa_ok($trait_2, 'TraitTestBase');
 
-ok($trait_1->is("TPrintable"), '... trait 1 is TPrintable');
-ok($trait_1->is("TCompositeTest"), '... trait 1 is TCompositeTest');
-ok($trait_1->is("TComparable"), '... trait 1 is TComparable (becuase of TCompositeTest');
+ok($trait_1->does("TPrintable"), '... trait 1 is TPrintable');
+ok($trait_1->does("TCompositeTest"), '... trait 1 is TCompositeTest');
+ok($trait_1->does("TComparable"), '... trait 1 is TComparable (becuase of TCompositeTest');
 
-ok($trait_2->is("TPrintable"), '... trait 2 is TPrintable');
-ok($trait_2->is("TCompositeTest"), '... trait 2 is TCompositeTest');
-ok($trait_2->is("TComparable"), '... trait 2 is TComparable (becuase of TCompositeTest');
+ok($trait_2->does("TPrintable"), '... trait 2 is TPrintable');
+ok($trait_2->does("TCompositeTest"), '... trait 2 is TCompositeTest');
+ok($trait_2->does("TComparable"), '... trait 2 is TComparable (becuase of TCompositeTest');
 
 # check that it "can" execute the methods 
 # that it should have gotten from the traits

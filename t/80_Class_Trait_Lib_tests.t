@@ -22,8 +22,8 @@ BEGIN {
     can_ok("Test::Class::LoadingTraitsWithColonsInThem", 'new');
     my $test = Test::Class::LoadingTraitsWithColonsInThem->new();
 
-    can_ok($test, 'is');
-    ok($test->is('Test::LoadingTraitsWithColonsInThem'), '... our trait was compiled successfully');
+    can_ok($test, 'does');
+    ok($test->does('Test::LoadingTraitsWithColonsInThem'), '... our trait was compiled successfully');
             
     can_ok($test, 'isLoaded');
     is($test->isLoaded(), 'Test::LoadingTraitsWithColonsInThem', '... and our trait method is as we expected');
@@ -40,8 +40,8 @@ BEGIN {
     can_ok("Test::Class::Another::ColonInTheName", 'new');
     my $test = Test::Class::Another::ColonInTheName->new();
 
-    can_ok($test, 'is');
-    ok($test->is('Test::Another::ColonInTheName'), '... our trait was compiled successfully');
+    can_ok($test, 'does');
+    ok($test->does('Test::Another::ColonInTheName'), '... our trait was compiled successfully');
 
     can_ok($test, 'isLoaded');
     is($test->isLoaded(), 'Test::Another::ColonInTheName', '... and our trait method is as we expected');

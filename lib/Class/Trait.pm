@@ -4,7 +4,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION  = '0.05';
+our $VERSION  = '0.06';
 
 use overload ();
 use Data::Dumper;
@@ -179,24 +179,29 @@ sub apply_traits_to_package {
     debug "^ storing reference to traits in $package";
     no strict 'refs';
     *{"${package}::TRAITS"} = \$trait;
-	*{"${package}::is"}	= \&is;
+	*{"${package}::does"}	= \&does;
+	*{"${package}::is"}	    = sub {
+	    warn "Use of &is is now deprecated, please use &does instead";
+	    no strict 'refs';
+	    goto &{"${package}::does"};
+	};	
 }
 
-sub is {
+sub does {
     my ($class, $trait_name) = @_;
     $class = ref($class) || $class;
     no strict 'refs';
-    return _recursive_is(${"${class}::TRAITS"}, $trait_name);  
+    return _recursive_does(${"${class}::TRAITS"}, $trait_name);  
 }
 
-sub _recursive_is {
+sub _recursive_does {
     my ($trait, $trait_name) = @_;
     return 1 if ($trait->name eq $trait_name);    
 	foreach my $sub_trait_name (@{$trait->sub_traits}) {
         # if its on the second level, then we are here
         return 1 if ($sub_trait_name eq $trait_name);
         # if not, then we need to descend lower
-        return 1 if (_recursive_is($CACHE{$sub_trait_name}, $trait_name));
+        return 1 if (_recursive_does($CACHE{$sub_trait_name}, $trait_name));
 	} 
     return 0;
 }
@@ -1039,11 +1044,15 @@ One trait may satisfy the requirements of another trait when they are combined i
 
 While not really exported, Class::Trait leaves the actual Class::Trait::Config object applied to the package stored as scalar in the package variable at C<$TRAITS>. 
 
-=item B<is>
+=item B<does>
 
 Class::Trait will export this method into any object which uses traits. By calling this method you can query the kind of traits the object has implemented. The method works much like the perl C<isa> method in that it performs a depth-first search of the traits hierarchy and  returns true (1) if the object implements the trait, and false (0) otherwise.
 
-  $my_object_with_traits->is('TPrintable');
+  $my_object_with_traits->does('TPrintable');
+
+=item B<is>
+
+Class::Triat used to export this method to any object which uses traits, but it was found to conflict with Test::More::is. The recommended way is to use C<does>, but C<is> will still be around for a few more releases, but it will issue a warning about being deprecated.
 
 =back
 
@@ -1203,6 +1212,8 @@ In this release I have added some pre-built traits that can be used; TEquality, 
 =item Thanks to Yuval Kogman for spotting the problem with loading traits with :: in them. Thanks to Curtis "Ovid" Poe for bringing it up again, and prompting me to release the fix.
 
 =item Thanks to Roman Daniel for fixing SUPER:: handling.
+
+=item Thanks to Curtis "Ovid" Poe for the code to change C<is> to C<does>.
 
 =item 
 

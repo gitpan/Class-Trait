@@ -1,5 +1,12 @@
 Revision history for Perl extension Class::Trait.
 
+0.06 Nov. 15, 2005
+    - Renamed "is" method to "does".  This is the same method name used with
+      Perl 6 roles and avoids conflicts with Test::More::is().
+        - &is is now offically deprecated, it will be removed after a few 
+          more releases
+        - Thanks to Curtis "Ovid" Poe for this code change
+
 0.05 Sept. 14, 2005
     - fixed a bug in TEquality::isExactly
     - fixed Class::Trait::Reflection, it was loading Class::Trait

@@ -21,7 +21,7 @@ isa_ok($circle, 'Circle');
 
 # check the traits in it
 my @trait_in_circle = qw/ TCircle TMagnitude TGeometry TColor TEquality /;
-ok($circle->is($_), "... circle is $_") foreach @trait_in_circle;
+ok($circle->does($_), "... circle is $_") foreach @trait_in_circle;
 
 # now check the methods we expect it to have
 my @method_labels = (

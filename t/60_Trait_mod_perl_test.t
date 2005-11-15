@@ -33,5 +33,5 @@ BEGIN {
     
     eval "use BasicTrait;";
     
-    ok(BasicTrait->is("TSimple"), '.. BasicTrait is TSimple');
+    ok(BasicTrait->does("TSimple"), '.. BasicTrait is TSimple');
 }

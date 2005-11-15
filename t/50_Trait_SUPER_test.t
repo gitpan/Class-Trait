@@ -23,7 +23,7 @@ my $sync_reader = SyncRead->new();
 isa_ok($sync_reader, 'SyncRead');
 isa_ok($sync_reader, 'Read');
 
-ok($sync_reader->is('TSyncRead'), '... sync reader is a TSyncRead');
+ok($sync_reader->does('TSyncRead'), '... sync reader is a TSyncRead');
 
 # these should be the same
 is($reader->read(), $sync_reader->read(), '... these should be the same results');

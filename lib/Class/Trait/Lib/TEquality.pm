@@ -4,7 +4,7 @@ package TEquality;
 use strict;
 use warnings;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Class::Trait 'base';
 
@@ -50,7 +50,7 @@ sub isExactly {
 	# address through normal stringification, and so we will
 	# need to call its method stringValue (see the Printable
 	# interface for more info)
-	return ($self->stringValue() eq $canidate->stringValue()) if $self->is("TPrintable");
+	return ($self->stringValue() eq $canidate->stringValue()) if $self->does("TPrintable");
 	# if the object is not Printable, that means that we can
 	# use the built in Perl stringification routine then, so 
 	# we do just that, if these strings match then the memory
