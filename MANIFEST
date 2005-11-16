@@ -1,16 +1,19 @@
 Changes
-Makefile.PL
-MANIFEST
-README
 lib/Class/Trait.pm
 lib/Class/Trait/Base.pm
 lib/Class/Trait/Config.pm
-lib/Class/Trait/Reflection.pm
 lib/Class/Trait/Lib/TComparable.pm
 lib/Class/Trait/Lib/TEquality.pm
 lib/Class/Trait/Lib/TPrintable.pm
+lib/Class/Trait/Reflection.pm
+Makefile.PL
+MANIFEST
+META.yml			Module meta-data (added by MakeMaker)
+README
 t/10_class_trait.t
 t/20_trait_overload.t
+t/21_trait_rename_does.t
+t/22_trait_performs.t
 t/30_trait_composition.t
 t/40_Trait_Config_test.t
 t/50_Trait_SUPER_test.t
@@ -19,14 +22,15 @@ t/70_Trait_SUPER2_test.t
 t/80_Class_Trait_Lib_tests.t
 t/pod.t
 t/pod_coverage.t
-t/Test/LoadingTraitsWithColonsInThem.pm
 t/Test/Another/ColonInTheName.pm
+t/Test/LoadingTraitsWithColonsInThem.pm
 t/test_lib/BasicTrait.pm
 t/test_lib/Circle.pm
 t/test_lib/Employee.pm
 t/test_lib/Person.pm
 t/test_lib/PersonWithTitle.pm
 t/test_lib/Read.pm
+t/test_lib/RenameDoesToPerforms.pm
 t/test_lib/SyncRead.pm
 t/test_lib/TCircle.pm
 t/test_lib/TColor.pm
@@ -38,4 +42,3 @@ t/test_lib/TraitTestBase.pm
 t/test_lib/TSimple.pm
 t/test_lib/TSyncRead.pm
 t/test_lib/Ttitle.pm
-META.yml                                 Module meta-data (added by MakeMaker)

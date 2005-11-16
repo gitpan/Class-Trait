@@ -4,7 +4,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION  = '0.06';
+our $VERSION  = '0.07';
 
 use overload ();
 use Data::Dumper;
@@ -35,6 +35,18 @@ my $debug_indent = 0;
 }
 
 ## ----------------------------------------------------------------------------
+
+# This allows us to rename "does" to something which does not conflict with a
+# method in the current package.  Also, for backwards compatability, one can
+# specifiy Class::Trait->relation('is');
+
+my $NAME_FOR_DOES = 'does';
+my $DOES = sub {
+    my ($class, $trait_name) = @_;
+    $class = ref($class) || $class;
+    no strict 'refs';
+    return _recursive_does(${"${class}::TRAITS"}, $trait_name);  
+};
 
 # a trait cache, so we can avoid re-processing 
 # traits we already have processed. This is 
@@ -67,7 +79,7 @@ my %TRAIT_LIB = map { $_ => 1 }
 ## ----------------------------------------------------------------------------
 
 sub import {
-    shift;
+    my $class = shift;
 	# just loading the module 
 	# does not mean we have any 
 	# traits to give it, so we 
@@ -87,6 +99,9 @@ sub import {
 		# push our base into the front 
 		# of the ISA list
 		unshift @{"${package}::ISA"} => 'Class::Trait::Base';
+        if (defined (my $name_for_does = $_[1])) {
+            $class->_rename_does($package, $name_for_does);
+        }
 	}
 	# otherwise we are using traits
 	else {
@@ -179,19 +194,29 @@ sub apply_traits_to_package {
     debug "^ storing reference to traits in $package";
     no strict 'refs';
     *{"${package}::TRAITS"} = \$trait;
-	*{"${package}::does"}	= \&does;
-	*{"${package}::is"}	    = sub {
-	    warn "Use of &is is now deprecated, please use &does instead";
-	    no strict 'refs';
-	    goto &{"${package}::does"};
-	};	
+    __PACKAGE__->_rename_does($package);
 }
 
-sub does {
-    my ($class, $trait_name) = @_;
-    $class = ref($class) || $class;
+sub rename_does {
+    shift; # Class::Trait;
+    my ($package) = caller();    
+    __PACKAGE__->_rename_does($package, @_);
+}
+
+sub _rename_does {
+    my $class   = shift;
+    my $package = shift;
+    if (@_) {
+        my $name_for_does = shift;
+        unless ($name_for_does =~ /^[[:word:]]+$/) {
+            die "Illegal name for trait relation method ($name_for_does)";
+        }
+        $NAME_FOR_DOES = $name_for_does;
+    }
     no strict 'refs';
-    return _recursive_does(${"${class}::TRAITS"}, $trait_name);  
+    no warnings 'redefine';
+	*{"${package}::$NAME_FOR_DOES"}	= $DOES;
+    return $package;
 }
 
 sub _recursive_does {
@@ -1052,7 +1077,30 @@ Class::Trait will export this method into any object which uses traits. By calli
 
 =item B<is>
 
-Class::Triat used to export this method to any object which uses traits, but it was found to conflict with Test::More::is. The recommended way is to use C<does>, but C<is> will still be around for a few more releases, but it will issue a warning about being deprecated.
+Class::Trait used to export this method to any object which uses traits, but it was found 
+to conflict with Test::More::is. The recommended way is to use C<does>.
+
+To use C<is> instead of C<does>, one trait must use the following syntax for inheritance:
+
+ use Class::Trait qw/base is/;
+
+Instead of:
+
+ use Class::Trait 'base';
+
+It is recommended that all traits use this syntax if necessary as the
+mysterious "action at a distance" of renaming this method can be confusing.
+
+As an alternative, you can also simply use the following in any code which
+uses traits:
+
+ BEGIN {
+    require Class::Trait;
+    Class::Trait->rename_does('is');
+ }
+
+This is generally not recommended in test suites as Test::More::is() conflicts
+with this method.
 
 =back
 
@@ -1063,6 +1111,31 @@ Class::Triat used to export this method to any object which uses traits, but it 
 =item B<initialize>
 
 Class::Trait uses the INIT phase of the perl compiler, which will not run under mod_perl or if a package is loaded at runtime with C<require>. In order to insure that all traits a properly verified, this method must be called. However, you may still use Class::Trait without doing this, for more details see the L<CAVEAT> section.
+
+=item B<rename_does>
+
+Note:  You probably do not want to use this method.
+
+Class::Trait uses C<does()> to determine if a class can "do" a particular
+trait.  However, your package may already have a C<does()> method defined or
+you may be migrating from an older version of L<Class::Trait> which uses
+C<is()> to perform this function.  To rename C<does()> to something more
+suitable, you can use this at the top of your code:
+
+ BEGIN {
+    require Class::Trait; # we do not want to call import()
+    Class::Trait->rename_does($some_other_method_name);
+ }
+
+ use Class::Trait 'some_trait';
+
+If you wish to shield your users from seeing this, you can declare any trait
+with:
+
+ use Class::Trait qw/base performs/; # 'performs' can be any valid method name
+
+You only need to do that in one trait and all traits will pick up the new
+method name.
 
 =back
 
@@ -1239,3 +1312,4 @@ This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 
 
 =cut
+

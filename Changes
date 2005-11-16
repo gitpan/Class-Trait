@@ -1,5 +1,10 @@
 Revision history for Perl extension Class::Trait.
 
+0.07 Nov. 16, 2005
+    *** API CHANGE ***
+    - "is" is no longer exported.  Instead, programmers have the option of
+      renaming the "does" method to something more suitable for their needs.
+
 0.06 Nov. 15, 2005
     - Renamed "is" method to "does".  This is the same method name used with
       Perl 6 roles and avoids conflicts with Test::More::is().
