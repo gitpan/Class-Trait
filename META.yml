@@ -1,12 +1,38 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         Class-Trait
-version:      0.07
-version_from: lib/Class/Trait.pm
-installdirs:  site
+---
+name: Class-Trait
+version: 0.10
+author:
+  - Curtis "Ovid" Poe <ovid@cpan.org>
+abstract: An implementation of Traits in Perl
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
 requires:
-    File::Spec:                    0
-    Test::More:                    0.47
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.17
+  File::Spec: 0
+  Test::More: 0.47
+provides:
+  Class::Trait:
+    file: lib/Class/Trait.pm
+    version: 0.10
+  Class::Trait::Base:
+    file: lib/Class/Trait/Base.pm
+    version: 0.05
+  Class::Trait::Config:
+    file: lib/Class/Trait/Config.pm
+    version: 0.04
+  Class::Trait::Reflection:
+    file: lib/Class/Trait/Reflection.pm
+    version: 0.05
+  TComparable:
+    file: lib/Class/Trait/Lib/TComparable.pm
+    version: 0.01
+  TEquality:
+    file: lib/Class/Trait/Lib/TEquality.pm
+    version: 0.03
+  TPrintable:
+    file: lib/Class/Trait/Lib/TPrintable.pm
+    version: 0.01
+generated_by: Module::Build version 0.2703
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

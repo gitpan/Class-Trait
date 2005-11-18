@@ -3,29 +3,29 @@
 use strict;
 use warnings;
 
-use Test::More tests => 22;
+use Test::More tests => 25;
 
 BEGIN {
     unshift @INC => ( 't/test_lib', '/test_lib' );
 }
 
 # we have to use it directly because it uses an INIT block to flatten traits
-use BasicTrait;
+use BasicTraitImport;
 
-can_ok( BasicTrait => 'getName' );
-is( BasicTrait->getName(), 'TSimple',
+can_ok( BasicTraitImport => 'getName' );
+is( BasicTraitImport->getName(), 'TImport',
     '... and it should have the method from the trait' );
 
-ok( BasicTrait->does("TSimple"), '.. BasicTrait is TSimple' );
+ok( BasicTraitImport->does("TImport"), '.. BasicTraitImport is TImport' );
 
-ok( exists( $BasicTrait::{"TRAITS"} ), '... the $TRAITS are properly stored' );
+ok( exists( $BasicTraitImport::{"TRAITS"} ), '... the $TRAITS are properly stored' );
 
 my $trait;
 {
     no strict 'refs';
 
     # get the trait out
-    $trait = ${"BasicTrait::TRAITS"};
+    $trait = ${"BasicTraitImport::TRAITS"};
 }
 
 # check to see what it is
@@ -34,7 +34,7 @@ isa_ok( $trait, 'Class::Trait::Config' );
 # now examine the trait itself
 
 can_ok( $trait, 'name' );
-is( $trait->name, 'TSimple', '... get the traits name' );
+is( $trait->name, 'TImport', '... get the traits name' );
 
 can_ok( $trait, 'sub_traits' );
 is( ref( $trait->sub_traits ), "ARRAY", '... our sub_trait is an array ref' );
@@ -55,6 +55,12 @@ ok( eq_hash( $trait->conflicts, {} ), '... both should be empty' );
 
 can_ok( $trait, 'methods' );
 is( ref( $trait->methods ), "HASH", '... our methods is an hash ref' );
-ok( eq_hash( $trait->methods, { "getName" => 'TSimple::getName' } ),
+ok( eq_hash( $trait->methods, { "getName" => 'TImport::getName' } ),
     '... both should NOT be empty' );
 
+can_ok 'TImport', 'getName';
+
+# XXX note that even though these methods are here, they are not considered
+# "provided" methods by the trait because the trait imported them.
+can_ok 'TImport', 'this';
+can_ok 'TImport', 'that';

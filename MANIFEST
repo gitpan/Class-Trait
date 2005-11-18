@@ -1,3 +1,4 @@
+Build.PL
 Changes
 lib/Class/Trait.pm
 lib/Class/Trait/Base.pm
@@ -11,22 +12,25 @@ MANIFEST
 META.yml			Module meta-data (added by MakeMaker)
 README
 t/10_class_trait.t
+t/15_test_imports.t
 t/20_trait_overload.t
-t/21_trait_rename_does.t
-t/22_trait_performs.t
 t/30_trait_composition.t
 t/40_Trait_Config_test.t
 t/50_Trait_SUPER_test.t
 t/60_Trait_mod_perl_test.t
 t/70_Trait_SUPER2_test.t
 t/80_Class_Trait_Lib_tests.t
+t/90_trait_rename_does.t
+t/91_trait_performs.t
 t/pod.t
 t/pod_coverage.t
 t/Test/Another/ColonInTheName.pm
 t/Test/LoadingTraitsWithColonsInThem.pm
 t/test_lib/BasicTrait.pm
+t/test_lib/BasicTraitImport.pm
 t/test_lib/Circle.pm
 t/test_lib/Employee.pm
+t/test_lib/FooExport.pm
 t/test_lib/Person.pm
 t/test_lib/PersonWithTitle.pm
 t/test_lib/Read.pm
@@ -36,6 +40,7 @@ t/test_lib/TCircle.pm
 t/test_lib/TColor.pm
 t/test_lib/TCompositeTest.pm
 t/test_lib/TGeometry.pm
+t/test_lib/TImport.pm
 t/test_lib/TMagnitude.pm
 t/test_lib/TraitTest.pm
 t/test_lib/TraitTestBase.pm

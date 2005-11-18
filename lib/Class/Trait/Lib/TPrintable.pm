@@ -1,18 +1,17 @@
-
 package TPrintable;
 
 use strict;
 use warnings;
 
 our $VERSION = '0.01';
-	
-use Class::Trait 'base';    
-    
-use overload (); # we need a method from overload	
-	
+
+use Class::Trait 'base';
+
+use overload ();    # we need a method from overload
+
 ## overload operator
 
-our %OVERLOADS = ('""' => "toString");
+our %OVERLOADS = ( '""' => "toString" );
 
 ## requires
 
@@ -22,8 +21,8 @@ our @REQUIRES = qw(toString);
 
 # return the unmolested object string
 sub stringValue {
-	my ($self) = @_;
-	return overload::StrVal($self);
+    my ($self) = @_;
+    return overload::StrVal($self);
 }
 
 1;
@@ -36,9 +35,10 @@ TPrintable - Trait for adding stringification abilities to your object
 
 =head1 DESCRIPTION
 
-TPrintable gives your object automatic stringification abilities, as well as access to your original stringified object value.
+TPrintable gives your object automatic stringification abilities, as well as
+access to your original stringified object value.
 
-=head1 REQUIREMENTS
+=head1 REQUIRES
 
 =over 4
 
@@ -58,13 +58,14 @@ This operator call the C<toString> method to stringify the object.
 
 =back
 
-=head1 METHODS
+=head1 PROVIDES
 
 =over 4
 
 =item B<stringValue>
 
-This returns the normal perl stringified value, bypassing whatever C<toString> might return.
+This returns the normal perl stringified value, bypassing whatever C<toString>
+might return.
 
 =back
 
@@ -78,7 +79,7 @@ Copyright 2004, 2005 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com> 
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
+This library is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself. 
 
 =cut

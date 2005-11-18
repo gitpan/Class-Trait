@@ -7,30 +7,34 @@ package TGeometry;
 use Class::Trait 'base';
 
 our @REQUIRES = qw(
-			getCenter
-			setCenter
-			getRadius
-			setRadius
-			);
+  getCenter
+  setCenter
+  getRadius
+  setRadius
+);
 
 sub area {
-	my ($self) = @_;
-	# ...
+    my ($self) = @_;
+
+    # ...
 }
 
 sub bounds {
-	my ($self) = @_;
-	# ...
+    my ($self) = @_;
+
+    # ...
 }
 
 sub diameter {
-	my ($self) = @_;
-	# ...	
+    my ($self) = @_;
+
+    # ...
 }
 
 sub scaleBy {
-	my ($self, $magnitude) = @_;
-	# ...	
+    my ( $self, $magnitude ) = @_;
+
+    # ...
 }
 
 1;

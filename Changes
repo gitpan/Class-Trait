@@ -1,5 +1,11 @@
 Revision history for Perl extension Class::Trait.
 
+0.10 Nov. 17, 2005
+    - BUG FIX:  Traits only provide methods defined in the trait.
+      Imported subroutines are no longer "provided".
+    - Reformatted
+    - Add Module::Build support
+
 0.07 Nov. 16, 2005
     *** API CHANGE ***
     - "is" is no longer exported.  Instead, programmers have the option of

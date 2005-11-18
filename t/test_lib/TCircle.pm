@@ -9,18 +9,20 @@ use Class::Trait 'base';
 use Class::Trait qw(TMagnitude TGeometry);
 
 our %OVERLOADS = (
-	'<' => "lessThan",
-	'==' => "equalTo"
-	);
+    '<'  => "lessThan",
+    '==' => "equalTo"
+);
 
 sub lessThan {
-	my ($left, $right) = @_;
-	# ...
+    my ( $left, $right ) = @_;
+
+    # ...
 }
 
 sub equalTo {
-	my ($left, $right) = @_;
-	# ...
+    my ( $left, $right ) = @_;
+
+    # ...
 }
 
 1;
