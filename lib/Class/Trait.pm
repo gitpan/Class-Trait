@@ -3,16 +3,28 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
-use overload ();
-use Data::Dumper;
+use overload   ();
 use File::Spec ();
 
 use B qw/svref_2object/;
 
-sub _sub_package { 
-    eval { svref_2object( shift )->STASH->NAME };
+sub _sub_package {
+    my $package;
+    eval {
+        my $stash = svref_2object(shift)->STASH;
+        if ( $stash && $stash->can('NAME') ) {
+            $package = $stash->NAME;
+        }
+        else {
+            $package = '';
+        }
+    };
+    if ($@) {
+        warn "Could not determine calling package: $@";
+    }
+    return $package;
 }
 
 ## ----------------------------------------------------------------------------
@@ -21,6 +33,7 @@ sub _sub_package {
 
 # make a sub
 sub DEBUG { 0 }
+require Data::Dumper if DEBUG;
 
 # this is accessable to the package
 my $debug_indent = 0;
@@ -58,7 +71,7 @@ my $DOES = sub {
     my $trait = shift;
     my $class = ref($trait) || $trait;
     no strict 'refs';
-    unless ($trait->isa('Class::Trait::Config')) {
+    unless ( $trait->isa('Class::Trait::Config') ) {
         $trait = ${"${class}::TRAITS"};
     }
     if (@_) {
@@ -127,8 +140,10 @@ sub import {
 
     # otherwise we are using traits
     else {
-        debug "^ compiling/processing traits for $package";
-        $debug_indent++ if DEBUG;
+        if (DEBUG) {
+            debug "^ compiling/processing traits for $package";
+            $debug_indent++;
+        }
         apply_traits( $package, compile_traits( $package, @_ ) );
         $debug_indent-- if DEBUG;
     }
@@ -136,8 +151,10 @@ sub import {
 
 sub apply_traits {
     my ( $package, $composite_trait_config ) = @_;
-    debug "> proccessing traits for $package";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> proccessing traits for $package";
+        $debug_indent++;
+    }
     if ( $package->isa('Class::Trait::Base') ) {
         apply_traits_to_trait( $package, $composite_trait_config );
     }
@@ -149,11 +166,14 @@ sub apply_traits {
         apply_traits_to_package( $package, $composite_trait_config );
 
         # we still do try to verify the traits in the INIT phase
-        debug "~ verification of traits for $package scheduled for INIT phase";
+        debug "~ verification of traits for $package scheduled for INIT phase"
+          if DEBUG;
         $TRAITS_TO_CHECK{$package} = $composite_trait_config;
     }
-    $debug_indent-- if DEBUG;
-    debug "< finished proccessing traits for $package";
+    if (DEBUG) {
+        $debug_indent--;
+        debug "< finished proccessing traits for $package";
+    }
 }
 
 # INIT now just runs initialize
@@ -163,20 +183,45 @@ INIT {
 
 # initialize checks that all the traits requirements have been fufilled
 sub initialize {
-    debug "> verifiying traits in packages";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> verifiying traits in packages";
+        $debug_indent++;
+    }
     my ( $package, $trait );
     while ( ( $package, $trait ) = each %TRAITS_TO_CHECK ) {
         check_traits_in_package( $package, $trait );
     }
-    $debug_indent-- if DEBUG;
-    debug "> finished verifiying traits in packages";
+    if (DEBUG) {
+        $debug_indent--;
+        debug "> finished verifiying traits in packages";
+    }
 }
 
 sub check_traits_in_package {
     my ( $package, $trait ) = @_;
-    debug "? verifying $package fufills the requirements for $trait->{name}";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug
+          "? verifying $package has no conflicts with $trait->{name}";
+        $debug_indent++;
+    }
+    my @conflicting_methods;
+    while ( my ( $method, $conflict ) = each %{ $trait->conflicts } ) {
+        if ($conflict) {
+            push @conflicting_methods, $method;
+        }
+    }
+    if (@conflicting_methods) {
+        @conflicting_methods = sort @conflicting_methods;
+        die
+            "Package $package has conflicting methods (@conflicting_methods)";
+    }
+    $debug_indent-- if DEBUG;
+
+    if (DEBUG) {
+        debug
+          "? verifying $package fufills the requirements for $trait->{name}";
+        $debug_indent++;
+    }
     foreach my $requirement ( keys %{ $trait->requirements } ) {
 
         # if the requirement is an operator then we need to put the paren in
@@ -186,13 +231,15 @@ sub check_traits_in_package {
 
         # now check if the package fufills the requirement or not, and die if
         # it fails
-        ( $package->can($requirement) )
-          || die
-          "requirement ($requirement) for $trait->{name} not in $package\n";
+        unless ( $package->can($requirement) ) {
+            die
+              "Requirement ($requirement) for $trait->{name} not in $package\n";
+        }
 
         # if it doesn't fail we can go on to the next
         debug
-"+ requirement ($requirement) for $trait->{name} fufilled in $package";
+          "+ requirement ($requirement) for $trait->{name} fufilled in $package"
+          if DEBUG;
     }
     $debug_indent-- if DEBUG;
 }
@@ -203,20 +250,20 @@ sub check_traits_in_package {
 
 sub apply_traits_to_package {
     my ( $package, $trait ) = @_;
-    debug "@ applying trait ($trait->{name}) to package ($package)";
-    $debug_indent++ if DEBUG;
-
-    # XXX stubbing the requirements currently produces an warning about
-    # subroutine redefinition. So we are leaving this out for now.
-    # _stub_requirements($package, $trait);
+    if (DEBUG) {
+        debug "@ applying trait ($trait->{name}) to package ($package)";
+        $debug_indent++;
+    }
 
     _add_trait_methods( $package, $trait );
     _add_trait_overloads( $package, $trait );
-    $debug_indent-- if DEBUG;
+    if (DEBUG) {
+        $debug_indent--;
+        debug "^ storing reference to traits in $package";
+    }
 
     # now storing the trait in the package so that it can be accessable
     # through reflection.
-    debug "^ storing reference to traits in $package";
     no strict 'refs';
     *{"${package}::TRAITS"} = \$trait;
     __PACKAGE__->_rename_does($package);
@@ -274,43 +321,14 @@ sub _recursive_does {
 # private methods used by trait application
 # -----------------------------------------------
 
-# NOTE:
-
-# XXX stubbing the requirements currently produces an warning about subroutine
-# redefinition. So we are leaving this out for now.
-
-sub _stub_requirements {
-    my ( $package, $trait ) = @_;
-    debug "? verifying $package fufills the requirements for $trait->{name}";
-
-    # we are messing with symbol tables so turn this off for now
-    $debug_indent++ if DEBUG;
-    no strict 'refs';
-    foreach my $requirement ( keys %{ $trait->requirements } ) {
-
-        # if the requirement is an operator then we need to put the paren in
-        # front, as that is how overload.pm does it, this will tell us if the
-        # operator has been overloaded or not
-        $requirement = "($requirement" unless is_method_label($requirement);
-
-        # place a stub routine in place of the requirement, perl will fill
-        # this in laters with the real one
-        *{"${package}::${requirement}"} =
-          sub { die "trait requirement ($requirement) not implemented\n" };
-
-        # report the stubbing
-        debug
-          "+ requirement ($requirement) for $trait->{name} stubbed in $package";
-    }
-    $debug_indent-- if DEBUG;
-}
-
 sub _add_trait_methods {
     my ( $package, $trait ) = @_;
-    debug "> adding trait ($trait->{name}) methods into $package";
+    if (DEBUG) {
+        debug "> adding trait ($trait->{name}) methods into $package";
+        $debug_indent++;
+    }
 
     # we are messing with symbol tables so turn this off for now
-    $debug_indent++ if DEBUG;
     no strict 'refs';
     my ( $method_label, $method );
     while ( ( $method_label, $method ) = each %{ $trait->methods } ) {
@@ -324,7 +342,7 @@ sub _add_trait_methods {
         unless ( defined &{"${package}::$method_label"} ) {
 
             # we add it ....
-            debug "+ adding method ($method_label) into $package";
+            debug "+ adding method ($method_label) into $package" if DEBUG;
 
             #*{"${package}::$method_label"} = $method;
             eval qq{
@@ -335,7 +353,8 @@ sub _add_trait_methods {
         else {
 
          # otherwise we let the local class's version override the trait version
-            debug "~ $package locally implements method ($method_label)";
+            debug "~ $package locally implements method ($method_label)"
+              if DEBUG;
         }
     }
     $debug_indent-- if DEBUG;
@@ -343,13 +362,15 @@ sub _add_trait_methods {
 
 sub _add_trait_overloads {
     my ( $package, $trait ) = @_;
-    debug "> adding trait ($trait->{name}) overloads into $package";
+    if (DEBUG) {
+        debug "> adding trait ($trait->{name}) overloads into $package";
+        $debug_indent++;
+    }
 
-    # make sure we dont overwrite any overloads so we must first check to see
+    # make sure we don't overwrite any overloads so we must first check to see
     # if they are defined in the local class and build a temporary set of
     # overloads to apply.
 
-    $debug_indent++ if DEBUG;
     my %overloads = ( fallback => 1 );
     my ( $operator, $method_label );
     while ( ( $operator, $method_label ) = each %{ $trait->overloads } ) {
@@ -359,11 +380,11 @@ sub _add_trait_overloads {
         # trait is
 
         unless ( defined &{"${package}::($operator"} ) {
-            debug "+ adding operator ($operator) into $package";
+            debug "+ adding operator ($operator) into $package" if DEBUG;
             $overloads{$operator} = $method_label;
         }
         else {
-            debug "~ $package locally implements operator ($operator)";
+            debug "~ $package locally implements operator ($operator)" if DEBUG;
         }
     }
     $debug_indent-- if DEBUG;
@@ -378,7 +399,7 @@ sub _add_trait_overloads {
 
 sub apply_traits_to_trait {
     my ( $package, $trait ) = @_;
-    debug "^ storing sub-traits ($trait->{name}) into trait $package";
+    debug "^ storing sub-traits ($trait->{name}) into trait $package" if DEBUG;
     no strict 'refs';
     *{"${package}::TRAITS"} = $trait;
 }
@@ -395,19 +416,22 @@ sub apply_traits_to_trait {
 
 sub compile_traits {
     my ( $package, @trait_declarations ) = @_;
-    debug "> compling traits for $package";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> compiling traits for $package";
+        $debug_indent++;
+    }
 
     # now we can process our traits
     my @traits = ();
 
     # loop through the declarations
-    for ( my $i = 0 ; $i < scalar @trait_declarations ; $i++ ) {
+    while ( defined( my $trait_name = shift @trait_declarations ) ) {
 
         # get the name
-        my $trait_name = $trait_declarations[$i];
-        debug "+ found trait ($trait_name)";
-        $debug_indent++ if DEBUG;
+        if (DEBUG) {
+            debug "+ found trait ($trait_name)";
+            $debug_indent++;
+        }
 
         # and load the trait
         my $trait_config = load_trait($trait_name);
@@ -416,12 +440,14 @@ sub compile_traits {
         # be made to the trait (exclusion or aliasing), then process that
         # accordingly
 
-        if ( ref( $trait_declarations[ $i + 1 ] ) eq "HASH" ) {
-            debug "+ found trait declarations for $trait_name in $package";
+        if ( ref( $trait_declarations[0] ) eq "HASH" ) {
+            if (DEBUG) {
+                debug "+ found trait declarations for $trait_name in $package";
+                $debug_indent++;
+            }
 
             # get the changes
-            my $trait_changes = $trait_declarations[ ++$i ];
-            $debug_indent++ if DEBUG;
+            my $trait_changes = shift @trait_declarations;
 
             # check for aliases first
 
@@ -430,24 +456,29 @@ sub compile_traits {
             # excluded to avoid a conflict.
 
             if ( exists ${$trait_changes}{alias} ) {
-                debug "> found alias declaration";
-                $debug_indent++ if DEBUG;
+                if (DEBUG) {
+                    debug "> found alias declaration";
+                    $debug_indent++;
+                }
                 alias_trait_methods( $trait_config,
                     %{ $trait_changes->{alias} } );
                 $debug_indent-- if DEBUG;
             }
 
             # now check for exludes
-            if ( exists ${$trait_changes}{exclude} ) {
-                debug "> found exclude declaration";
-                $debug_indent++ if DEBUG;
-                exclude_trait_methods( $trait_config,
-                    @{ $trait_changes->{exclude} } );
+            if ( defined( my $excludes = ${$trait_changes}{exclude} ) ) {
+                if (DEBUG) {
+                    debug "> found exclude declaration";
+                    $debug_indent++;
+                }
+                $excludes = [$excludes] unless 'ARRAY' eq ref $excludes;
+                exclude_trait_methods( $trait_config, $excludes );
                 $debug_indent-- if DEBUG;
             }
             $debug_indent-- if DEBUG;
             debug
-"< finished processing trait declarations for $trait_name in $package";
+"< finished processing trait declarations for $trait_name in $package"
+              if DEBUG;
         }
 
         # our trait is all ready now, so we can then push it onto the list
@@ -460,8 +491,10 @@ sub compile_traits {
     # trait)
 
     my $composite_trait_config = sum_traits(@traits);
-    $debug_indent-- if DEBUG;
-    debug "< finished compling traits for $package";
+    if (DEBUG) {
+        $debug_indent--;
+        debug "< finished compling traits for $package";
+    }
 
     # now our composite trait is complete
     return $composite_trait_config;
@@ -476,26 +509,27 @@ sub load_trait {
 
     # check first to see if we already
     # have the trait in our cache
-    if ( $CACHE{$trait} ) {
-        debug "~ found trait ($trait) in cache";
+    if ( exists $CACHE{$trait} ) {
+        debug "~ found trait ($trait) in cache" if DEBUG;
 
         # return a copy out of our cache
         return __PACKAGE__->fetch_trait_from_cache($trait);
     }
 
-    debug "> loading trait ($trait)";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> loading trait ($trait)";
+        $debug_indent++;
+
+        debug "+ requiring ${trait}.pm";
+        $debug_indent++;
+    }
 
     # load the trait ...
-    debug "+ requiring ${trait}.pm";
-    $debug_indent++ if DEBUG;
     if ( exists $TRAIT_LIB{$trait} ) {
-        debug "! ${trait} is in our trait lib, ... loading from lib";
+        debug "! ${trait} is in our trait lib, ... loading from lib" if DEBUG;
         eval { require File::Spec->catfile( $TRAIT_LIB_ROOT, "${trait}.pm" ); };
     }
     else {
-
-        #require "${trait}.pm";
         eval "require ${trait}";
     }
     $debug_indent-- if DEBUG;
@@ -522,14 +556,18 @@ sub load_trait {
 
     # if this trait has sub-traits, we need to process them.
     if ( $trait->isa('Class::Trait::Base') && defined %{"${trait}::TRAITS"} ) {
-        debug "! found sub-traits in trait ($trait)";
-        $debug_indent++ if DEBUG;
+        if (DEBUG) {
+            debug "! found sub-traits in trait ($trait)";
+            $debug_indent++;
+        }
         $trait_config =
           _override_trait( \%{"${trait}::TRAITS"}, $trait_config );
-        $debug_indent-- if DEBUG;
-        debug "< dumping trait ($trait) with subtraits ("
-          . ( join ", " => @{ $trait_config->{sub_traits} } ) . ") : "
-          . Dumper($trait_config);
+        if (DEBUG) {
+            $debug_indent--;
+            debug "< dumping trait ($trait) with subtraits ("
+              . ( join ", " => @{ $trait_config->{sub_traits} } ) . ") : "
+              . Data::Dumper::Dumper($trait_config);
+        }
     }
 
     # put the trait into the cache to avoid having to be processed again
@@ -542,9 +580,10 @@ sub load_trait {
         *{"Class::Trait::Config::$NAME_FOR_DOES"} = $DOES;
     }
 
-
-    $debug_indent-- if DEBUG;
-    debug "< finished loading trait ($trait)";
+    if (DEBUG) {
+        $debug_indent--;
+        debug "< finished loading trait ($trait)";
+    }
 
     # then return the fresh config
     return $trait_config;
@@ -582,14 +621,18 @@ sub _override_trait {
     $trait_config->requirements =
       { %{ $trait->requirements }, %{ $overriding_trait->requirements } };
 
+    if (DEBUG) {
+        debug "? checking for requirement fufillment";
+        $debug_indent++;
+    }
+
     # but we need to check them
-    debug "? checking for requirement fufillment";
-    $debug_indent++ if DEBUG;
     foreach my $requirement ( keys %{ $trait_config->requirements } ) {
         if ( is_method_label($requirement) ) {
             if ( exists ${ $trait_config->methods }{$requirement} ) {
                 debug
-"+ method requirement ($requirement) is fufilled in overriding trait";
+"+ method requirement ($requirement) is fufilled in overriding trait"
+                  if DEBUG;
                 delete ${ $trait_config->requirements }{$requirement};
                 next;
             }
@@ -597,23 +640,28 @@ sub _override_trait {
         else {
             if ( exists ${ $trait_config->overloads }{$requirement} ) {
                 debug
-"+ overload requirement ($requirement) is fufilled in overriding trait";
+"+ overload requirement ($requirement) is fufilled in overriding trait"
+                  if DEBUG;
                 delete ${ $trait_config->requirements }{$requirement};
                 next;
             }
         }
-        debug "* requirement ($requirement) not fufilled in overriding trait";
+        debug "* requirement ($requirement) not fufilled in overriding trait"
+          if DEBUG;
     }
-    $debug_indent-- if DEBUG;
+    if (DEBUG) {
+        $debug_indent--;
+        debug "? checking for conflict resultion";
+        $debug_indent++;
+    }
 
     # now deal with conflicts
-    debug "? checking for conflict resultion";
-    $debug_indent++ if DEBUG;
     foreach my $conflict ( keys %{ $trait->conflicts } ) {
         if ( is_method_label($conflict) ) {
             if ( exists ${ $trait_config->methods }{$conflict} ) {
                 debug
-"+ method conflict ($conflict) is resolved in overriding trait";
+"+ method conflict ($conflict) is resolved in overriding trait"
+                  if DEBUG;
                 delete ${ $trait_config->requirements }{$conflict};
                 next;
             }
@@ -621,12 +669,14 @@ sub _override_trait {
         else {
             if ( exists ${ $trait_config->overloads }{$conflict} ) {
                 debug
-"+ overload conflict ($conflict) is resolved in overriding trait";
+"+ overload conflict ($conflict) is resolved in overriding trait"
+                  if DEBUG;
                 delete ${ $trait_config->requirements }{$conflict};
                 next;
             }
         }
-        debug "* conflict ($conflict) not resolved in overriding trait";
+        debug "* conflict ($conflict) not resolved in overriding trait"
+          if DEBUG;
         $trait_config->conflicts->{$conflict}++;
     }
     $debug_indent-- if DEBUG;
@@ -643,7 +693,7 @@ sub _get_trait_requirements {
     ( defined $trait_config->name )
       || die "Trait must be loaded first before information can be gathered\n";
     my $trait = $trait_config->name;
-    debug "< getting requirements for ${trait}";
+    debug "< getting requirements for ${trait}" if DEBUG;
 
     # get any requirements in the trait and turn it into a hash so we can
     # track stuff easier
@@ -655,23 +705,24 @@ sub _get_trait_requirements {
 sub _get_trait_methods {
     my ($trait_config) = @_;
 
+    ( defined $trait_config->name )
+      || die "Trait must be loaded first before information can be gathered\n";
+    my $trait = $trait_config->name;
+    debug "< getting methods for ${trait}" if DEBUG;
+
     # this function messes with symbol tables and symbol refs, so turn strict
     # off in its context
 
     no strict 'refs';
-    ( defined $trait_config->name )
-      || die "Trait must be loaded first before information can be gathered\n";
-    my $trait = $trait_config->name;
-    debug "< getting methods for ${trait}";
-
     my %implementation_for;
-    foreach  ( keys %{"${trait}::"} ) {
+    foreach ( keys %{"${trait}::"} ) {
         my $method = "${trait}::$_";
         next unless defined &$method;
+
         # make sure we're not grabbing sub imported into the trait
-        next unless _sub_package(\&$method) eq $trait;
-        if ( /(DESTROY|AUTOLOAD)/ ) {
-            die "traits are not allowed to implement $1\n";
+        next unless _sub_package( \&$method ) eq $trait;
+        if (/(DESTROY|AUTOLOAD)/) {
+            die "Trait $trait attempted to implement disallowed method $1\n";
         }
         $implementation_for{$_} = $method;
     }
@@ -688,7 +739,7 @@ sub _get_trait_overloads {
     ( defined $trait_config->name )
       || die "Trait must be loaded first before information can be gathered\n";
     my $trait = $trait_config->name;
-    debug "< getting overloads for ${trait}";
+    debug "< getting overloads for ${trait}" if DEBUG;
 
     # get the overload parameter hash
     $trait_config->overloads = { %{"${trait}::OVERLOADS"} }
@@ -700,18 +751,18 @@ sub _get_trait_overloads {
 ## ----------------------------------------------------------------------------
 
 # NOTE: the traits are stored as a copy and then fetched as a copy. This is
-# becuase we alter our version when we apply declarations (excludes, aliases),
+# because we alter our version when we apply declarations (excludes, aliases),
 # and so we need to make sure our cache stays clean.
 
 sub store_trait_in_cache {
     my ( $trait_name, $trait_config ) = @_;
-    debug "^ storing ($trait_name) in cache";
+    debug "^ storing ($trait_name) in cache" if DEBUG;
     $CACHE{$trait_name} = $trait_config->clone();
 }
 
 sub fetch_trait_from_cache {
     my ( $class, $trait_name ) = @_;
-    debug "< fetching ($trait_name) from cache";
+    debug "< fetching ($trait_name) from cache" if DEBUG;
     return $CACHE{$trait_name}->clone();
 }
 
@@ -723,25 +774,40 @@ sub fetch_trait_from_cache {
 # exclusion
 # -----------------------------------------------
 sub exclude_trait_methods {
-    my ( $trait_config, @exclusions ) = @_;
-    debug "- excluding methods for trait ($trait_config->{name})";
-    $debug_indent++ if DEBUG;
-    foreach my $exculsion (@exclusions) {
+    my ( $trait_config, $exclusions ) = @_;
+    if (DEBUG) {
+        debug "- excluding methods for trait ($trait_config->{name})";
+        $debug_indent++;
+    }
+    foreach my $exclusion (@$exclusions) {
 
         # check we have the method being excluded
-        ( exists ${ $trait_config->methods }{$exculsion} )
+        ( exists ${ $trait_config->methods }{$exclusion} )
 
           # otherwise we throw an exception here
           || die
-"attempt to exclude method ($exculsion) that is not in trait ($trait_config->{name})\n";
-        debug "- excluding method ($exculsion)";
+"Attempt to exclude method ($exclusion) that is not in trait ($trait_config->{name})\n";
+        debug "- excluding method ($exclusion)" if DEBUG;
 
         # if we do have it, so lets exclude it
-        delete ${ $trait_config->methods }{$exculsion};
+        delete ${ $trait_config->methods }{$exclusion};
+        {
+            my $package = $trait_config->name;
+            my $method  = "${package}::$exclusion";
+            no strict 'refs';
+
+            # we need to wipe out the entire glob because "undef &$method"
+            # will result in a weird "Not a CODE reference" error if the
+            # method is later called because the other glob slots will still
+            # exist.  This is arguably a bug in Perl.
+            # This may prove problematic later if composite traits require
+            # this method.  We may need to revisit this in the future.
+            undef *$method;
+        }
 
         # and be sure to add it to the list of requirements
         # unless its already there
-        $trait_config->requirements->{$exculsion}++;
+        $trait_config->requirements->{$exclusion}++;
     }
     $debug_indent-- if DEBUG;
 }
@@ -751,7 +817,7 @@ sub exclude_trait_methods {
 # -----------------------------------------------
 sub alias_trait_methods {
     my ( $trait_config, %aliases ) = @_;
-    debug "=> aliasing methods for trait ($trait_config->{name})";
+    debug "=> aliasing methods for trait ($trait_config->{name})" if DEBUG;
 
     # Now when aliasing methods for a trait, we need to be sure to move any
     # operator overloads that are bound to the old method to use the new
@@ -767,12 +833,13 @@ sub alias_trait_methods {
     foreach my $old_name ( keys %aliases ) {
 
         # check we have the method being aliases
-        ( exists ${ $trait_config->methods }{$old_name} )
+        exists ${ $trait_config->methods }{$old_name}
 
           # otherwise we throw an exception here
           || die
-"attempt to alias method ($old_name) that is not in trait ($trait_config->{name})\n";
-        debug "=> aliasing method ($old_name) to ($aliases{$old_name})";
+"Attempt to alias method ($old_name) that is not in trait ($trait_config->{name})\n";
+        debug "=> aliasing method ($old_name) to ($aliases{$old_name})"
+          if DEBUG;
 
         # if we do have it, so lets alias it
         $trait_config->methods->{ $aliases{$old_name} } =
@@ -791,7 +858,7 @@ sub alias_trait_methods {
 # summation
 # -----------------------------------------------
 
-# a constant to reprsent the name of a composite trait, a composite trait's
+# a constant to represent the name of a composite trait, a composite trait's
 # name is best described as the concatenation of all the names of its
 # subtraits, but rather than duplicate that information in the name field and
 # the sub-traits field, we assign a COMPOSITE constant as a placeholder/flag
@@ -805,11 +872,12 @@ sub sum_traits {
         # if we have only one trait, it doesn't make sense to sum it since
         # there is nothing to sum it against
 
-        debug "< only one trait, no need to sum";
+        debug "< only one trait, no need to sum" if DEBUG;
         return $traits[0];
     }
     debug "> summing traits ("
-      . ( join ", " => map { $_->{name} } @traits ) . ")";
+      . ( join ", " => map { $_->{name} } @traits ) . ")"
+      if DEBUG;
 
     # initialize our trait configuration
     my $trait_config = Class::Trait::Config->new();
@@ -822,8 +890,10 @@ sub sum_traits {
     # and process our traits
     foreach my $trait (@traits) {
         push @{ $trait_config->sub_traits } => $trait->name;
-        debug "+ adding trait ($trait->{name}) to composite trait";
-        $debug_indent++ if DEBUG;
+        if (DEBUG) {
+            debug "+ adding trait ($trait->{name}) to composite trait";
+            $debug_indent++;
+        }
 
         # first lets check the methods
         _fold_in_methods( $trait, $trait_config );
@@ -837,8 +907,11 @@ sub sum_traits {
     # now that we have added all our methods we can check to see if any of our
     # requirements have been fufilled during that time
 
-    debug "? checking requirements for sum-ed traits ($trait_config->{name})";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug
+          "? checking requirements for sum-ed traits ($trait_config->{name})";
+        $debug_indent++;
+    }
     foreach my $trait (@traits) {
         _check_requirements( $trait, $trait_config );
     }
@@ -846,7 +919,7 @@ sub sum_traits {
 
     # now we have cleared up any requirements and combined all our methods, we
     # can return the config
-    debug "< traits summed successfully";
+    debug "< traits summed successfully" if DEBUG;
     return $trait_config;
 }
 
@@ -856,11 +929,13 @@ sub sum_traits {
 
 sub _fold_in_methods {
     my ( $trait, $trait_config ) = @_;
-    debug "> folding in methods for trait ($trait->{name})";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> folding in methods for trait ($trait->{name})";
+        $debug_indent++;
+    }
     foreach my $method_label ( keys %{ $trait->methods } ) {
         if ( exists ${ $trait_config->conflicts }{$method_label} ) {
-            debug "* method ($method_label) is already in conflict";
+            debug "* method ($method_label) is already in conflict" if DEBUG;
 
             # move to the next method as we cannot add this one
             next;
@@ -871,19 +946,16 @@ sub _fold_in_methods {
 
             # check to make sure it is not the same method possibly from a
             # shared base/sub-trait
-            unless (
-                are_methods_equal(
-                    $trait_config->methods->{$method_label},
-                    $trait->methods->{$method_label}
-                )
-              )
+            unless ( $trait_config->methods->{$method_label} eq
+                $trait->methods->{$method_label} )
             {
 
                 # this is a conflict, we need to add the method label onto the
                 # requirements and we need to label that a method is in
                 # conflict.
                 debug
-"* method ($method_label) is in conflict, added to the requirements";
+"* method ($method_label) is in conflict, added to the requirements"
+                  if DEBUG;
 
                 # method is in conflict...
                 $trait_config->conflicts->{$method_label}++;
@@ -897,11 +969,12 @@ sub _fold_in_methods {
             }
             else {
                 debug
-"~ method ($method_label) is a duplicate, no action was taken";
+                  "~ method ($method_label) is a duplicate, no action was taken"
+                  if DEBUG;
             }
         }
         else {
-            debug "+ method ($method_label) added successfully";
+            debug "+ method ($method_label) added successfully" if DEBUG;
 
             # move it
             $trait_config->methods->{$method_label} =
@@ -913,11 +986,13 @@ sub _fold_in_methods {
 
 sub _fold_in_overloads {
     my ( $trait, $trait_config ) = @_;
-    debug "> folding in overloads for trait ($trait->{name})";
-    $debug_indent++ if DEBUG;
+    if (DEBUG) {
+        debug "> folding in overloads for trait ($trait->{name})";
+        $debug_indent++;
+    }
     foreach my $overload ( keys %{ $trait->overloads } ) {
         if ( exists ${ $trait_config->conflicts }{$overload} ) {
-            debug "* overload ($overload) is already in conflict";
+            debug "* overload ($overload) is already in conflict" if DEBUG;
 
             # move to the next overload as we cannot add this one
             next;
@@ -934,10 +1009,12 @@ sub _fold_in_overloads {
             my $overload_method = ${ $trait_config->overloads }{$overload};
             unless ( ${ $trait_config->conflicts }{$overload_method} ) {
                 debug
-                  "~ operator ($overload)  is a duplicate, no action was taken";
+                  "~ operator ($overload)  is a duplicate, no action was taken"
+                  if DEBUG;
                 next;
             }
-            debug "* operator ($overload) in conflict, added to requirements";
+            debug "* operator ($overload) in conflict, added to requirements"
+              if DEBUG;
 
             # note the conflict and ...
             $trait_config->conflicts->{$overload}++;
@@ -950,7 +1027,7 @@ sub _fold_in_overloads {
             $trait_config->requirements->{"${overload}"}++;
         }
         else {
-            debug "+ operator ($overload) added successfully";
+            debug "+ operator ($overload) added successfully" if DEBUG;
 
             # otherwise add it to the list of methods
             $trait_config->overloads->{$overload} =
@@ -964,15 +1041,17 @@ sub _check_requirements {
     my ( $trait, $trait_config ) = @_;
 
     # now check the requirements
-    debug "? checking for trait ($trait->{name})";
+    debug "? checking for trait ($trait->{name})" if DEBUG;
     foreach my $requirement ( keys %{ $trait->requirements } ) {
 
         # if the method does not exist in
         # our new combined method group
         unless ( exists ${ $trait_config->methods }{$requirement} ) {
-            $debug_indent++ if DEBUG;
-            debug "* requirement ($requirement) not fufilled";
-            $debug_indent-- if DEBUG;
+            if (DEBUG) {
+                $debug_indent++;
+                debug "* requirement ($requirement) not fufilled";
+                $debug_indent--;
+            }
 
             # make it a reuiqement for the package
             $trait_config->requirements->{$requirement}++;
@@ -984,20 +1063,8 @@ sub _check_requirements {
 ## utility methods
 ## ----------------------------------------------------------------------------
 
-sub are_methods_equal {
-    my ( $method_1, $method_2 ) = @_;
-    return ( $method_1 eq $method_2 ) ? 1 : 0;
-
-    # make sure we are given proper code refs
-    #    (ref($method_1) eq "CODE" && ref($method_2) eq "CODE")
-    #      || die "are_methods_equal not called with methods\n";
-    # then decide if they are the same method (same address)
-    #    return ("$method_1" eq "$method_2") ? 1 : 0;
-}
-
 # short quick predicate functions
 sub is_method_label { $_[0] =~ /[[:alpha:]][[:word:]]+/ }
-sub is_operator { not is_method_label(shift) }
 
 1;
 
@@ -1025,7 +1092,7 @@ Class::Trait - An implementation of Traits in Perl
     use Class::Trait (
         'TPrintable' => {
             alias   => { "stringValue" => "strVal" },
-            exclude => [ "stringValue" ]
+            exclude => "stringValue",
          },
      );
             
@@ -1124,7 +1191,7 @@ Here is a simple example of the usage of the above trait in a class.
     use Class::Trait (
         'TPrintable' => { 
             alias   => { "strVal" => "stringValue" }
-            exclude => [ "stringValue" ]
+            exclude => "stringValue",
         }
     );
     
@@ -1144,7 +1211,8 @@ through the following methods.
 
 =item * Exclusion	
 
-An array of method labels to exclude from trait.
+An array of method labels to exclude from trait.  If only a single method
+needs to be excluded, you may provide the method name without an array.
 
 =item * Alias
 
@@ -1502,6 +1570,24 @@ help.
 
 =back
 
+=head1 PRIVATE METHODS IN TRAITS
+
+Sometimes a trait will want to define private methods that only it can see.
+Any subroutine imported into the trait from outside of the trait will
+automatically be excluded.  However, a trait can define private methods by
+using anonymous subroutines.
+
+ package TSomeTrait;
+ use Class::Trait 'base';
+
+ my $private = sub { ... };
+
+ sub public {
+     my $self = shift;
+     my $data = $self->$private;
+     ...
+ }
+
 =head1 ACKNOWLEDGEMENTS
 
 =over 4
@@ -1537,10 +1623,34 @@ particular the paper "Traits - A Formal Model", as well as another paper on
 statically-typed traits (which is found here :
 L<http://www.cs.uchicago.edu/research/publications/techreports/TR-2003-13>). 
 
+=head1 BUGS
+
+=head2 Redefined subroutine warnings
+
+If a class using a trait has a method which the trait defines, the class's 
+method is assumed to be the correct method.  However, you may get a 
+"Subroutine redefined" warning.  To avoid this, explicitly exclude the method:
+
+ use Class::Trait TSomeTrait => { exclude => 'foo' };
+
+ sub foo {}
+
+Sometimes you will see strange warnings such as:
+
+ Subroutine Circle::(== redefined at /usr/lib/perl5/5.8.7/overload.pm at ...
+
+This is because traits can support overloading.  To avoid this warning, define
+your overloaded methods prior to using L<Class::Trait>.
+
+ use overload ( '==' => \&equalTo );
+
+ use Class::Trait
+   "TCircle" => { exclude => 'equalTo' },
+   "TColor"  => { exclude => 'equalTo' };
+
 =head1 MAINTAINER
 
 Curtis "Ovid" Poe, C<< <ovid [at] cpan [dot] org> >>
-
 
 =head1 AUTHOR
 

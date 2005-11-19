@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Test::More tests => 41;
+use Test::Differences;
 
 BEGIN {
     chdir 't' if -d 't';
@@ -82,58 +83,55 @@ isa_ok( $trait, 'Class::Trait::Config' );
 # now examine the trait itself
 is( $trait->name, 'COMPOSITE', '... get the traits name' );
 
-ok( eq_array( $trait->sub_traits, [ 'TCircle', 'TColor' ] ),
-    '... this should not be empty' );
+eq_or_diff $trait->sub_traits, [ 'TCircle', 'TColor' ],
+  '... this should not be empty';
 
-ok( eq_hash( $trait->conflicts, { '==' => 1, equalTo => 1 } ),
-    '... this should not be empty' );
+eq_or_diff $trait->conflicts, {}, '... we should have no conflicts';
 
-ok(
-    eq_hash(
-        $trait->requirements,
-        {
-            '=='      => 1,
-            equalTo   => 1,
-            getRadius => 1,
-            setRadius => 1,
-            getRGB    => 1,
-            setRGB    => 1,
-            getCenter => 1,
-            setCenter => 1,
-        }
-    ),
-    '... this should not be empty'
-);
+eq_or_diff $trait->requirements,
+  {
+    getRadius => 1,
+    setRadius => 1,
+    getRGB    => 1,
+    setRGB    => 1,
+    getCenter => 1,
+    setCenter => 1,
+    equalTo   => 2,
+  },
+  '... and trait requirements should be correct';
 
-ok(
-    eq_hash(
-        $trait->overloads,
-        {
-            '>=' => 'greaterThanOrEqualTo',
-            '<=' => 'lessThanOrEqualTo',
-            '>'  => 'greaterThan',
-            '<'  => 'lessThan',
-            '!=' => 'notEqualTo'
-        }
-    ),
-    '... this should not be empty'
-);
+eq_or_diff $trait->overloads,
+  {
+    '==' => 'equalTo',
+    '>=' => 'greaterThanOrEqualTo',
+    '<=' => 'lessThanOrEqualTo',
+    '>'  => 'greaterThan',
+    '<'  => 'lessThan',
+    '!=' => 'notEqualTo'
+  },
+  '... and the overloaded operators should be correct';
 
-ok(
-    eq_set(
-        [ keys %{ $trait->methods } ],
-        [
-            'isSameTypeAs', 'isExactly',
-            'setBlue',      'area',
-            'getBlue',      'getRed',
-            'bounds',       'notEqualTo',
-            'getGreen',     'lessThanOrEqualTo',
-            'setRed',       'setGreen',
-            'scaleBy',      'lessThan',
-            'diameter',     'greaterThan',
-            'isBetween',    'greaterThanOrEqualTo'
-        ]
-    ),
-    '... this should not be empty'
-);
+eq_or_diff [ sort keys %{ $trait->methods } ], [
+    qw(
+      area
+      bounds
+      diameter
+      getBlue
+      getGreen
+      getRed
+      greaterThan
+      greaterThanOrEqualTo
+      isBetween
+      isExactly
+      isSameTypeAs
+      lessThan
+      lessThanOrEqualTo
+      notEqualTo
+      scaleBy
+      setBlue
+      setGreen
+      setRed
+      )
+  ],
+  '... and the trait methods should also be correct';
 

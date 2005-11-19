@@ -8,8 +8,9 @@ my $builder = Module::Build->new(
     dist_author       => 'Curtis "Ovid" Poe <ovid@cpan.org>',
     dist_version_from => 'lib/Class/Trait.pm',
     requires          => {
-        'Test::More' => 0.47,
-        'File::Spec' => 0,
+        'Test::Differences' => 0.47,
+        'Test::Simple'      => 0.62,
+        'File::Spec'        => 0,
     },
     add_to_cleanup     => ['Class-Trait-*'],
     create_makefile_pl => 'traditional',

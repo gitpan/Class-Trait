@@ -15,7 +15,10 @@ our %OVERLOADS = (
     '>=' => "greaterThanOrEqualTo",
 );
 
-our @REQUIRES = ("lessThan");
+our @REQUIRES = qw(
+    lessThan
+    equalTo
+);
 
 sub lessThanOrEqualTo {
     my ( $left, $right ) = @_;

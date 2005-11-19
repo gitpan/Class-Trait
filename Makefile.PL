@@ -6,7 +6,8 @@ WriteMakefile
   'VERSION_FROM' => 'lib/Class/Trait.pm',
   'PREREQ_PM' => {
     'File::Spec' => '0',
-    'Test::More' => '0.47'
+    'Test::Differences' => '0.47',
+    'Test::Simple' => '0.62'
   },
   'INSTALLDIRS' => 'site',
   'EXE_FILES' => [],

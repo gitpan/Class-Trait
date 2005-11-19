@@ -12,6 +12,7 @@ our $VERSION = '0.04';
 # simple on purpose.  you can consider this class to be effectively sealed.
 
 sub new {
+    my $class = shift;
     return bless {
         name         => "",
         sub_traits   => [],
@@ -19,8 +20,7 @@ sub new {
         methods      => {},
         overloads    => {},
         conflicts    => {}
-      },
-      __PACKAGE__;
+    }, $class;
 }
 
 # just use basic l-valued methods for clarity and speed.
@@ -50,15 +50,16 @@ sub conflicts : lvalue {
 
 # a basic clone function for moving in and out of the cache.
 sub clone {
+    my $self  = shift;
+    my $class = ref $self;
     return bless {
-        name         => $_[0]->{name},
-        sub_traits   => [ @{ $_[0]->{sub_traits} } ],
-        requirements => { %{ $_[0]->{requirements} } },
-        methods      => { %{ $_[0]->{methods} } },
-        overloads    => { %{ $_[0]->{overloads} } },
-        conflicts    => { %{ $_[0]->{conflicts} } }
-      },
-      "Class::Trait::Config";
+        name         => $self->{name},
+        sub_traits   => [ @{ $self->{sub_traits} } ],
+        requirements => { %{ $self->{requirements} } },
+        methods      => { %{ $self->{methods} } },
+        overloads    => { %{ $self->{overloads} } },
+        conflicts    => { %{ $self->{conflicts} } },
+    }, $class;
 }
 
 1;

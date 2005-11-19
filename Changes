@@ -1,5 +1,17 @@
 Revision history for Perl extension Class::Trait.
 
+0.11 Nov. 19, 2005
+    - Added tests to ensure that failure messages were correct.
+    - Fixed bug where not all conflicting methods were being recognized.
+    - If only a single method is to be excluded, you may specify the method
+      name without having to wrap it in an array reference.
+    - Clean up debugging code.  Only call debug() if needed.
+    - Only use Data::Dumper if debugging.
+    - Eliminated "uninitialized" warning when Class::Trait can't determine the
+      package a method originated it.
+    - Added "BUGS" section to documentation.  All known bugs have easy 
+      workarounds.
+
 0.10 Nov. 17, 2005
     - BUG FIX:  Traits only provide methods defined in the trait.
       Imported subroutines are no longer "provided".
