@@ -1,8 +1,7 @@
+package Read;
 
 use strict;
 use warnings;
-
-package Read;
 
 sub new {
 	my ($_class) = @_;

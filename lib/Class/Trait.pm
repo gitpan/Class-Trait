@@ -3,12 +3,19 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION = '0.11';
+our $VERSION = '0.20';
 
 use overload   ();
 use File::Spec ();
 
 use B qw/svref_2object/;
+use Scalar::Util qw/blessed/;
+
+sub _croak($) {
+    my $message = shift;
+    require Carp;
+    Carp::croak($message);
+}
 
 sub _sub_package {
     my $package;
@@ -67,18 +74,56 @@ sub _name_for_does {
     $NAME_FOR_DOES;
 }
 
+# XXX OK, admit it.  This function is a right mess.  I'm embarrassed.
+my %PACKAGE_DOES;
 my $DOES = sub {
-    my $trait = shift;
-    my $class = ref($trait) || $trait;
-    no strict 'refs';
-    unless ( $trait->isa('Class::Trait::Config') ) {
+    my $proto = shift;
+    my $class = ref($proto) || $proto;
+    my $trait;
+    unless ( $proto->isa('Class::Trait::Config') ) {
+        no strict 'refs';
         $trait = ${"${class}::TRAITS"};
     }
+    else {
+        $trait = $proto;
+    }
     if (@_) {
-        return _recursive_does( $trait, shift );
+        my $trait_name = shift;
+        if ( exists $PACKAGE_DOES{$class}{$trait_name} ) {
+            return 1;
+        }
+        my $does = _recursive_does( $trait, $trait_name );
+        return $does if $does;
+
+        # we have runtime traits applied to instances
+        if ( $class =~ /__ANON__/ ) {
+            no strict 'refs';
+            ($class) = @{"${class}::ISA"}; # ANON traits have single inheritance
+            return $class->$NAME_FOR_DOES($trait_name)
+              if $class->can($NAME_FOR_DOES);
+        }
+        return $does;
     }
     else {
-        return _all_does($trait);
+        my %does = map { $_ => 1 } _all_does($trait),
+          keys %{ $PACKAGE_DOES{$class} };
+
+        # we have runtime traits applied to instances
+        if ( $class =~ /__ANON__/ ) {
+            no strict 'refs';
+            ($class) = @{"${class}::ISA"}; # ANON traits have single inheritance
+            if ( $class->can($NAME_FOR_DOES) ) {
+                foreach my $does ( $class->$NAME_FOR_DOES ) {
+                    $does{$does} = 1;
+                }
+            }
+            if (exists $PACKAGE_DOES{$class}) {
+                foreach my $does (keys %{$PACKAGE_DOES{$class}}) {
+                    $does{$does} = 1;
+                }
+            }
+        }
+        return keys %does;
     }
 };
 
@@ -97,6 +142,16 @@ use Class::Trait::Base;
 # save packages that need to be checked for meeting requirements here
 
 my %TRAITS_TO_CHECK = ();
+
+sub _clear_all_caches {
+    %CACHE           = ();
+    %TRAITS_TO_CHECK = ();
+}
+
+# XXX this is merely a testing hook
+sub _clear_does_cache {
+    %PACKAGE_DOES = ();
+}
 
 # these traits are supplied "for free"
 
@@ -134,7 +189,7 @@ sub import {
         # of the ISA list
         unshift @{"${package}::ISA"} => 'Class::Trait::Base';
         if ( defined( my $name_for_does = $_[1] ) ) {
-            $class->_rename_does( $package, $name_for_does );
+            $class->_set_does( $package, $name_for_does );
         }
     }
 
@@ -144,26 +199,75 @@ sub import {
             debug "^ compiling/processing traits for $package";
             $debug_indent++;
         }
-        apply_traits( $package, compile_traits( $package, @_ ) );
+        _apply_traits( $package, _compile_traits( $package, @_ ) );
         $debug_indent-- if DEBUG;
     }
 }
 
-sub apply_traits {
-    my ( $package, $composite_trait_config ) = @_;
+# XXX we kick the anonymous counter every time we apply a trait to an instance
+# in order to guarantee that no two anonymous classes can ever share the same
+# name.
+my $anon_counter = 1;
+
+sub apply {
+    my ( $class, $proto, @traits ) = @_;
+
+    # failing to clear the caches means that trait information from one
+    # instance can bleed to another when resolving conflicts
+    _clear_all_caches();
+    my $target_class =
+      blessed $proto
+      ? _setup_anonymous_class( $proto, @traits )
+      : $proto;
+    eval {
+        _apply_traits( $target_class, _compile_traits( $target_class, @traits ),
+            1 );
+    };
+    _croak $@ if $@;
+
+    if ( blessed $proto) {
+
+        # XXX bless the object after attempting to apply traits.  Otherwise,
+        # someone at the top level could be applying a trait in an eval and
+        # getting the object blessed into the new class even though the trait
+        # application failed.
+        bless $proto, $target_class;
+    }
+    $class->initialize;
+    return $class;
+}
+
+sub _setup_anonymous_class {
+    my ( $instance, @traits ) = @_;
+    my $name = join ( '', grep { !ref } @traits ) . "_" . $anon_counter++;
+    my $package = ref $instance;
+    if ( $package =~ /^(.*)?::__ANON__::/ ) {
+        $package = $1;    # trim old anonymous info
+    }
+    my $anon_class = "${package}::__ANON__::$name";
+    {
+        no strict 'refs';
+        @{"${anon_class}::ISA"} = ref $instance;
+    }
+    return $anon_class;
+}
+
+sub _apply_traits {
+    my ( $package, $composite_trait_config, $override_methods ) = @_;
     if (DEBUG) {
         debug "> proccessing traits for $package";
         $debug_indent++;
     }
     if ( $package->isa('Class::Trait::Base') ) {
-        apply_traits_to_trait( $package, $composite_trait_config );
+        _apply_traits_to_trait( $package, $composite_trait_config );
     }
     else {
 
         # we now apply the traits in the BEGIN phase this allows the modules
         # to be used under mod_perl, however see the documentation for some
         # important caveats
-        apply_traits_to_package( $package, $composite_trait_config );
+        _apply_traits_to_package( $package, $composite_trait_config,
+            $override_methods );
 
         # we still do try to verify the traits in the INIT phase
         debug "~ verification of traits for $package scheduled for INIT phase"
@@ -189,7 +293,7 @@ sub initialize {
     }
     my ( $package, $trait );
     while ( ( $package, $trait ) = each %TRAITS_TO_CHECK ) {
-        check_traits_in_package( $package, $trait );
+        _check_traits_in_package( $package, $trait );
     }
     if (DEBUG) {
         $debug_indent--;
@@ -197,11 +301,10 @@ sub initialize {
     }
 }
 
-sub check_traits_in_package {
+sub _check_traits_in_package {
     my ( $package, $trait ) = @_;
     if (DEBUG) {
-        debug
-          "? verifying $package has no conflicts with $trait->{name}";
+        debug "? verifying $package has no conflicts with $trait->{name}";
         $debug_indent++;
     }
     my @conflicting_methods;
@@ -212,8 +315,8 @@ sub check_traits_in_package {
     }
     if (@conflicting_methods) {
         @conflicting_methods = sort @conflicting_methods;
-        die
-            "Package $package has conflicting methods (@conflicting_methods)";
+        _croak
+          "Package $package has conflicting methods (@conflicting_methods)";
     }
     $debug_indent-- if DEBUG;
 
@@ -229,11 +332,11 @@ sub check_traits_in_package {
         # operator has been overloaded or not
         $requirement = "($requirement" unless is_method_label($requirement);
 
-        # now check if the package fufills the requirement or not, and die if
+        # now check if the package fufills the requirement or not, and croak if
         # it fails
         unless ( $package->can($requirement) ) {
-            die
-              "Requirement ($requirement) for $trait->{name} not in $package\n";
+            _croak
+              "Requirement ($requirement) for $trait->{name} not in $package";
         }
 
         # if it doesn't fail we can go on to the next
@@ -248,15 +351,15 @@ sub check_traits_in_package {
 ## trait-to-package application
 ## ----------------------------------------------------------------------------
 
-sub apply_traits_to_package {
-    my ( $package, $trait ) = @_;
+sub _apply_traits_to_package {
+    my ( $package, $trait, $override_methods ) = @_;
     if (DEBUG) {
         debug "@ applying trait ($trait->{name}) to package ($package)";
         $debug_indent++;
     }
 
-    _add_trait_methods( $package, $trait );
-    _add_trait_overloads( $package, $trait );
+    _add_trait_methods( $package, $trait, $override_methods );
+    _add_trait_overloads( $package, $trait, $override_methods );
     if (DEBUG) {
         $debug_indent--;
         debug "^ storing reference to traits in $package";
@@ -266,22 +369,21 @@ sub apply_traits_to_package {
     # through reflection.
     no strict 'refs';
     *{"${package}::TRAITS"} = \$trait;
-    __PACKAGE__->_rename_does($package);
+    __PACKAGE__->_set_does($package);
 }
 
 sub rename_does {
     shift;    # Class::Trait;
     my ($package) = caller();
-    __PACKAGE__->_rename_does( $package, @_ );
+    __PACKAGE__->_set_does( $package, @_ );
 }
 
-sub _rename_does {
-    my $class   = shift;
-    my $package = shift;
+sub _set_does {
+    my ( $class, $package ) = splice @_, 0, 2;
     if (@_) {
         my $name_for_does = shift;
-        unless ( is_method_label($name_for_does) ) {
-            die "Illegal name for trait relation method ($name_for_does)";
+        if ( !is_method_label($name_for_does) ) {
+            _croak "Illegal name for trait relation method ($name_for_does)";
         }
         $NAME_FOR_DOES = $name_for_does;
     }
@@ -314,6 +416,7 @@ sub _recursive_does {
         # if not, then we need to descend lower
         return 1 if ( _recursive_does( $CACHE{$sub_trait_name}, $trait_name ) );
     }
+
     return 0;
 }
 
@@ -322,14 +425,12 @@ sub _recursive_does {
 # -----------------------------------------------
 
 sub _add_trait_methods {
-    my ( $package, $trait ) = @_;
+    my ( $package, $trait, $override_methods ) = @_;
     if (DEBUG) {
         debug "> adding trait ($trait->{name}) methods into $package";
         $debug_indent++;
     }
 
-    # we are messing with symbol tables so turn this off for now
-    no strict 'refs';
     my ( $method_label, $method );
     while ( ( $method_label, $method ) = each %{ $trait->methods } ) {
 
@@ -339,12 +440,15 @@ sub _add_trait_methods {
         # methods will be installed, and that the local implementations will
         # overwrite these.
 
-        unless ( defined &{"${package}::$method_label"} ) {
+        no strict 'refs';
+        if ( !defined &{"${package}::$method_label"} || $override_methods ) {
 
             # we add it ....
             debug "+ adding method ($method_label) into $package" if DEBUG;
 
-            #*{"${package}::$method_label"} = $method;
+            # suppress redefined warnings because traits applied to classes at
+            # runtime are treated as "mixins"
+            no warnings 'redefine';
             eval qq{
                 package $package;   
                 sub $method_label { $method(\@_) }
@@ -361,7 +465,7 @@ sub _add_trait_methods {
 }
 
 sub _add_trait_overloads {
-    my ( $package, $trait ) = @_;
+    my ( $package, $trait, $override_operators ) = @_;
     if (DEBUG) {
         debug "> adding trait ($trait->{name}) overloads into $package";
         $debug_indent++;
@@ -379,7 +483,7 @@ sub _add_trait_overloads {
         # operator since it is possible that "overload" was called before the
         # trait is
 
-        unless ( defined &{"${package}::($operator"} ) {
+        if ( !defined &{"${package}::($operator"} || $override_operators ) {
             debug "+ adding operator ($operator) into $package" if DEBUG;
             $overloads{$operator} = $method_label;
         }
@@ -397,7 +501,7 @@ sub _add_trait_overloads {
 ## trait-to-trait application
 ## ----------------------------------------------------------------------------
 
-sub apply_traits_to_trait {
+sub _apply_traits_to_trait {
     my ( $package, $trait ) = @_;
     debug "^ storing sub-traits ($trait->{name}) into trait $package" if DEBUG;
     no strict 'refs';
@@ -414,7 +518,7 @@ sub apply_traits_to_trait {
 # NOTE: this function utilizes functions from the section labled "trait
 # operations", which can be found at line no. 505
 
-sub compile_traits {
+sub _compile_traits {
     my ( $package, @trait_declarations ) = @_;
     if (DEBUG) {
         debug "> compiling traits for $package";
@@ -426,6 +530,7 @@ sub compile_traits {
 
     # loop through the declarations
     while ( defined( my $trait_name = shift @trait_declarations ) ) {
+        $PACKAGE_DOES{$package}{$trait_name} = 1;
 
         # get the name
         if (DEBUG) {
@@ -434,7 +539,7 @@ sub compile_traits {
         }
 
         # and load the trait
-        my $trait_config = load_trait($trait_name);
+        my $trait_config = _load_trait($trait_name);
 
         # then if the next element is a hash ref meaning there are changes to
         # be made to the trait (exclusion or aliasing), then process that
@@ -460,7 +565,7 @@ sub compile_traits {
                     debug "> found alias declaration";
                     $debug_indent++;
                 }
-                alias_trait_methods( $trait_config,
+                _alias_trait_methods( $trait_config,
                     %{ $trait_changes->{alias} } );
                 $debug_indent-- if DEBUG;
             }
@@ -472,7 +577,7 @@ sub compile_traits {
                     $debug_indent++;
                 }
                 $excludes = [$excludes] unless 'ARRAY' eq ref $excludes;
-                exclude_trait_methods( $trait_config, $excludes );
+                _exclude_trait_methods( $trait_config, $excludes );
                 $debug_indent-- if DEBUG;
             }
             $debug_indent-- if DEBUG;
@@ -490,7 +595,7 @@ sub compile_traits {
     # finally sum them all together into one config (minus any overriding
     # trait)
 
-    my $composite_trait_config = sum_traits(@traits);
+    my $composite_trait_config = _sum_traits(@traits);
     if (DEBUG) {
         $debug_indent--;
         debug "< finished compling traits for $package";
@@ -504,7 +609,7 @@ sub compile_traits {
 ## trait loader
 ## ----------------------------------------------------------------------------
 
-sub load_trait {
+sub _load_trait {
     my ($trait) = @_;
 
     # check first to see if we already
@@ -534,15 +639,15 @@ sub load_trait {
     }
     $debug_indent-- if DEBUG;
     if ($@) {
-        die "Trait ($trait) could not be found : $@\n";
+        _croak "Trait ($trait) could not be found : $@";
     }
 
     # otherwise ...
 
     # check to make sure it is the proper type
     $trait->isa('Class::Trait::Base')
-      || die
-      "$trait is not a proper trait (inherits from Class::Trait::Base)\n";
+      || _croak
+      "$trait is not a proper trait (inherits from Class::Trait::Base)";
 
     # initialize our trait configuration
     my $trait_config = Class::Trait::Config->new();
@@ -571,7 +676,7 @@ sub load_trait {
     }
 
     # put the trait into the cache to avoid having to be processed again
-    store_trait_in_cache( $trait, $trait_config );
+    _store_trait_in_cache( $trait, $trait_config );
     {
 
         # traits should be able to tell us which other traits they do
@@ -691,7 +796,7 @@ sub _get_trait_requirements {
 
     no strict 'refs';
     ( defined $trait_config->name )
-      || die "Trait must be loaded first before information can be gathered\n";
+      || _croak "Trait must be loaded first before information can be gathered";
     my $trait = $trait_config->name;
     debug "< getting requirements for ${trait}" if DEBUG;
 
@@ -706,7 +811,7 @@ sub _get_trait_methods {
     my ($trait_config) = @_;
 
     ( defined $trait_config->name )
-      || die "Trait must be loaded first before information can be gathered\n";
+      || _croak "Trait must be loaded first before information can be gathered";
     my $trait = $trait_config->name;
     debug "< getting methods for ${trait}" if DEBUG;
 
@@ -722,7 +827,7 @@ sub _get_trait_methods {
         # make sure we're not grabbing sub imported into the trait
         next unless _sub_package( \&$method ) eq $trait;
         if (/(DESTROY|AUTOLOAD)/) {
-            die "Trait $trait attempted to implement disallowed method $1\n";
+            _croak "Trait $trait attempted to implement disallowed method $1";
         }
         $implementation_for{$_} = $method;
     }
@@ -737,7 +842,7 @@ sub _get_trait_overloads {
 
     no strict 'refs';
     ( defined $trait_config->name )
-      || die "Trait must be loaded first before information can be gathered\n";
+      || _croak "Trait must be loaded first before information can be gathered";
     my $trait = $trait_config->name;
     debug "< getting overloads for ${trait}" if DEBUG;
 
@@ -754,7 +859,7 @@ sub _get_trait_overloads {
 # because we alter our version when we apply declarations (excludes, aliases),
 # and so we need to make sure our cache stays clean.
 
-sub store_trait_in_cache {
+sub _store_trait_in_cache {
     my ( $trait_name, $trait_config ) = @_;
     debug "^ storing ($trait_name) in cache" if DEBUG;
     $CACHE{$trait_name} = $trait_config->clone();
@@ -773,7 +878,7 @@ sub fetch_trait_from_cache {
 # -----------------------------------------------
 # exclusion
 # -----------------------------------------------
-sub exclude_trait_methods {
+sub _exclude_trait_methods {
     my ( $trait_config, $exclusions ) = @_;
     if (DEBUG) {
         debug "- excluding methods for trait ($trait_config->{name})";
@@ -785,25 +890,12 @@ sub exclude_trait_methods {
         ( exists ${ $trait_config->methods }{$exclusion} )
 
           # otherwise we throw an exception here
-          || die
-"Attempt to exclude method ($exclusion) that is not in trait ($trait_config->{name})\n";
+          || _croak
+"Attempt to exclude method ($exclusion) that is not in trait ($trait_config->{name})";
         debug "- excluding method ($exclusion)" if DEBUG;
 
         # if we do have it, so lets exclude it
         delete ${ $trait_config->methods }{$exclusion};
-        {
-            my $package = $trait_config->name;
-            my $method  = "${package}::$exclusion";
-            no strict 'refs';
-
-            # we need to wipe out the entire glob because "undef &$method"
-            # will result in a weird "Not a CODE reference" error if the
-            # method is later called because the other glob slots will still
-            # exist.  This is arguably a bug in Perl.
-            # This may prove problematic later if composite traits require
-            # this method.  We may need to revisit this in the future.
-            undef *$method;
-        }
 
         # and be sure to add it to the list of requirements
         # unless its already there
@@ -815,7 +907,7 @@ sub exclude_trait_methods {
 # -----------------------------------------------
 # aliasing
 # -----------------------------------------------
-sub alias_trait_methods {
+sub _alias_trait_methods {
     my ( $trait_config, %aliases ) = @_;
     debug "=> aliasing methods for trait ($trait_config->{name})" if DEBUG;
 
@@ -836,8 +928,8 @@ sub alias_trait_methods {
         exists ${ $trait_config->methods }{$old_name}
 
           # otherwise we throw an exception here
-          || die
-"Attempt to alias method ($old_name) that is not in trait ($trait_config->{name})\n";
+          || _croak
+"Attempt to alias method ($old_name) that is not in trait ($trait_config->{name})";
         debug "=> aliasing method ($old_name) to ($aliases{$old_name})"
           if DEBUG;
 
@@ -865,7 +957,7 @@ sub alias_trait_methods {
 
 use constant COMPOSITE => "COMPOSITE";
 
-sub sum_traits {
+sub _sum_traits {
     my (@traits) = @_;
     if ( scalar @traits == 1 ) {
 
@@ -1289,6 +1381,82 @@ One trait may satisfy the requirements of another trait when they are combined
 into a composite trait. This results in the removal of the requirement from
 the requirements array in the composite trait. 
 
+=head1 RUNTIME TRAIT APPLICATION
+
+As of C<Class::Trait> version 0.20, you can now apply traits at runtime to
+both classes and instances by using the C<apply()> method.  Applying a trait
+at runtime is similar to using the trait as a mixin because existing methods
+will be overwritten.
+
+The syntax is:
+
+ Class::Trait->apply($class_or_instance, @list_of_traits);
+
+=head2 Classes
+
+Applying a trait at runtime to a class:
+
+ if ($secure) {
+    Class::Trait->apply($class_name, 'TSecureConnection');
+ }
+ else {
+    warn "Using insecure connections";
+    Class::Trait->apply($class_name, 'TInsecureConnection');
+ }
+
+Now all instances of C<$class_name> will have the methods provided by the
+trait applied.  If the trait applied at runtime provides methods already
+defined in C<$class_name>, the C<$class_name> methods will be silently
+redefined with the trait's methods.
+
+=head2 Instances
+
+Applying a trait at runtime to an instance:
+
+ if ($secure) {
+    Class::Trait->apply($instance, 'TSecureConnection');
+ }
+ else {
+    warn "Using insecure connections";
+    Class::Trait->apply($instance, 'TInsecureConnection');
+ }
+
+When applying a trait (or set of traits) to an instance of a class, B<only>
+that instance gets the new methods.  If you want numerous instances to receive
+the new methods, either apply the trait to all instances or consider applying
+it to the class.
+
+Note that the instance is blessed into a new, anonymous class and it's this
+class which contains the new methods.
+
+=head1 WHEN TO USE TRAITS
+
+For a relatively simple class heirarchy you may need traits.  There are,
+however, several key indicators that traits may be beneficial for you.
+
+=over 4
+
+=item * Duplicated behavior
+
+Whenever you've duplicated behavior across unrelated classes.
+
+=item * Multiple inheritance
+
+Any time you might think about MI and it's only for code reuse (in other
+words, the subclass is not a more specific type of a super class)
+
+=item * Interfaces
+
+Any time you might want a Java-style interface but you also want an
+implementation to go with that.
+
+=item * Mixins
+
+Any time you might want to use mixins (have you ever considered exporting
+methods?)
+
+=back
+
 =head1 EXPORTS
 
 =over 4
@@ -1623,12 +1791,12 @@ particular the paper "Traits - A Formal Model", as well as another paper on
 statically-typed traits (which is found here :
 L<http://www.cs.uchicago.edu/research/publications/techreports/TR-2003-13>). 
 
-=head1 BUGS
+=head1 ERROR MESSAGES
 
 =head2 Redefined subroutine warnings
 
 If a class using a trait has a method which the trait defines, the class's 
-method is assumed to be the correct method.  However, you may get a 
+method is assumed to be the correct method.  However, you should get a 
 "Subroutine redefined" warning.  To avoid this, explicitly exclude the method:
 
  use Class::Trait TSomeTrait => { exclude => 'foo' };
@@ -1647,6 +1815,21 @@ your overloaded methods prior to using L<Class::Trait>.
  use Class::Trait
    "TCircle" => { exclude => 'equalTo' },
    "TColor"  => { exclude => 'equalTo' };
+
+=head1 BUGS
+
+=head2 does
+
+When applying traits at runtime to instances, the following works:
+
+ $object->does($some_trait_name);
+
+However, normally we should be able to do the following and get a list of all
+traits the instance does:
+
+ my @does = $object->does;
+
+Currently, this returns no traits.  It will be fixed in a future release.
 
 =head1 MAINTAINER
 

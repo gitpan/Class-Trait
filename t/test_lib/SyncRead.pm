@@ -1,4 +1,3 @@
-
 package SyncRead;
 
 use strict;

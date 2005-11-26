@@ -1,5 +1,13 @@
 Revision history for Perl extension Class::Trait.
 
+0.20 Nov. 26, 2005
+    - Added ability to apply traits at runtime to instances and classes
+    - Changed 'die' to 'croak'
+    - Renumbered tests.
+    - Made most private subs in Class::Trait begin with an underscore.
+    - Eliminated subtle bug where reusing a trait with excluded methods could
+      fail.  It doubtful anyone would ever encounter this, but still ...
+
 0.11 Nov. 19, 2005
     - Added tests to ensure that failure messages were correct.
     - Fixed bug where not all conflicting methods were being recognized.

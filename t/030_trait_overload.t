@@ -28,12 +28,12 @@ isa_ok( $trait_2, 'TraitTestBase' );
 ok( $trait_1->does("TPrintable"),     '... trait 1 is TPrintable' );
 ok( $trait_1->does("TCompositeTest"), '... trait 1 is TCompositeTest' );
 ok( $trait_1->does("TComparable"),
-    '... trait 1 is TComparable (becuase of TCompositeTest' );
+    '... trait 1 is TComparable (because of TCompositeTest' );
 
 ok( $trait_2->does("TPrintable"),     '... trait 2 is TPrintable' );
 ok( $trait_2->does("TCompositeTest"), '... trait 2 is TCompositeTest' );
 ok( $trait_2->does("TComparable"),
-    '... trait 2 is TComparable (becuase of TCompositeTest' );
+    '... trait 2 is TComparable (because of TCompositeTest' );
 
 # check that it "can" execute the methods
 # that it should have gotten from the traits

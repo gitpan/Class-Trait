@@ -11,18 +11,18 @@ Makefile.PL
 MANIFEST
 META.yml			Module meta-data (added by MakeMaker)
 README
-t/10_class_trait.t
-t/15_test_imports.t
-t/20_trait_overload.t
-t/30_trait_composition.t
-t/40_Trait_Config_test.t
-t/50_Trait_SUPER_test.t
-t/60_Trait_mod_perl_test.t
-t/70_Trait_SUPER2_test.t
-t/80_Class_Trait_Lib_tests.t
-t/90_trait_rename_does.t
-t/91_trait_performs.t
-t/99_trait_errors.t
+t/010_class_trait.t
+t/020_test_imports.t
+t/030_trait_overload.t
+t/040_trait_composition.t
+t/050_Trait_Config_test.t
+t/060_Trait_SUPER_test.t
+t/070_Trait_mod_perl_test.t
+t/080_Trait_SUPER2_test.t
+t/090_Class_Trait_Lib_tests.t
+t/100_trait_rename_does.t
+t/110_trait_performs.t
+t/120_trait_errors.t
 t/pod.t
 t/pod_coverage.t
 t/Test/Another/ColonInTheName.pm
@@ -53,3 +53,6 @@ t/test_lib/TSimple.pm
 t/test_lib/TSpouse.pm
 t/test_lib/TSyncRead.pm
 t/test_lib/Ttitle.pm
+temp/lib/TTrait1.pm
+temp/lib/TTrait2.pm
+temp/test.pl

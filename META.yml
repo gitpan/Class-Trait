@@ -1,6 +1,6 @@
 ---
 name: Class-Trait
-version: 0.11
+version: 0.20
 author:
   - Curtis "Ovid" Poe <ovid@cpan.org>
 abstract: An implementation of Traits in Perl
@@ -14,7 +14,7 @@ requires:
 provides:
   Class::Trait:
     file: lib/Class/Trait.pm
-    version: 0.11
+    version: 0.20
   Class::Trait::Base:
     file: lib/Class/Trait/Base.pm
     version: 0.05

@@ -46,7 +46,7 @@ Test::More::ok( $trait_1->is("TPrintable"), '... trait 1 is TPrintable' );
 Test::More::ok( $trait_1->is("TCompositeTest"),
     '... trait 1 is TCompositeTest' );
 Test::More::ok( $trait_1->is("TComparable"),
-    '... trait 1 is TComparable (becuase of TCompositeTest' );
+    '... trait 1 is TComparable (because of TCompositeTest' );
 
 Test::More::ok( $trait_2->is("TPrintable"), '... trait 2 is TPrintable' );
 Test::More::ok( $trait_2->is("TCompositeTest"),

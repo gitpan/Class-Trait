@@ -2,8 +2,15 @@ package Class::Trait::Base;
 
 use strict;
 use warnings;
+require Class::Trait;
 
 our $VERSION = '0.05';
+
+sub apply {
+    my ($trait, $instance) = @_;
+    Class::Trait->apply($instance, $trait);
+    return $trait;
+}
 
 # all that is here is an AUTOLOAD method which is used to fix the SUPER call
 # method resolution problem introduced when a trait calls a method in a SUPER
@@ -44,19 +51,43 @@ Class::Trait::Base - Base class for all Traits
 
 =head1 SYNOPSIS
 
-This class needs to be inheritied by all traits so they can be identified as
+This class needs to be inherited by all traits so they can be identified as
 traits.
 
 	use Class::Trait 'base';
 
 =head1 DESCRIPTION
 
-Not much going on here, just an AUTOLOAD function to help properly dispatch
-calls to C<SUPER::>.
+Not much going on here, just an AUTOLOAD method to help properly dispatch
+calls to C<SUPER::> and an C<apply> method.
+
+##############################################################################
+
+=head2 apply
+
+  require TSomeTrait;
+  TSomeTrait->apply($object);
+
+This method allows you to apply a trait to an object.  It returns the trait so
+you can then reapply it:
+
+ TTricks->apply($dog_object)
+        ->apply($cat_object);
+
+This is merely syntactic sugar for the C<Class::Trait::apply> method:
+
+ Class::Trait->apply($dog_object, 'TTricks');
+ Class::Trait->apply($cat_object, 'TTricks');
+
+=cut
 
 =head1 SEE ALSO
 
 B<Class::Trait>, B<Class::Trait::Config>
+
+=head1 MAINTAINER
+
+Curtis "Ovid" Poe, C<< <ovid [at] cpan [dot] org> >>
 
 =head1 AUTHOR
 
