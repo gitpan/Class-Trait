@@ -1,5 +1,13 @@
 Revision history for Perl extension Class::Trait.
 
+0.21 Sep. 12, 2006
+    - Converted Class::Trait::Config methods to be normal getter/setters, not
+      lvalue methods.  lvalue methods prevent the code from being profiled
+      via Devel::DProf.  Bug reported by Roman Daniel.  He also rewrote it to
+      fix the problem.
+    - Fixed bug where classes would report false for $class->does($class).
+      Reported by chromatic.
+
 0.20 Nov. 26, 2005
     - Added ability to apply traits at runtime to instances and classes
     - Changed 'die' to 'croak'

@@ -1,8 +1,8 @@
 ---
 name: Class-Trait
-version: 0.20
+version: 0.21
 author:
-  - Curtis "Ovid" Poe <ovid@cpan.org>
+  - 'Curtis "Ovid" Poe <ovid@cpan.org>'
 abstract: An implementation of Traits in Perl
 license: perl
 resources:
@@ -14,13 +14,13 @@ requires:
 provides:
   Class::Trait:
     file: lib/Class/Trait.pm
-    version: 0.20
+    version: 0.21
   Class::Trait::Base:
     file: lib/Class/Trait/Base.pm
     version: 0.05
   Class::Trait::Config:
     file: lib/Class/Trait/Config.pm
-    version: 0.04
+    version: 0.05
   Class::Trait::Reflection:
     file: lib/Class/Trait/Reflection.pm
     version: 0.05
@@ -33,7 +33,7 @@ provides:
   TPrintable:
     file: lib/Class/Trait/Lib/TPrintable.pm
     version: 0.01
-generated_by: Module::Build version 0.2703
+generated_by: Module::Build version 0.2805
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
   version: 1.2

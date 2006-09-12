@@ -3,7 +3,9 @@ package Class::Trait::Config;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
+
+use Carp qw(croak);
 
 # we are going for a very struct-like class here to try and keep the
 # syntactical noise down.
@@ -23,29 +25,15 @@ sub new {
     }, $class;
 }
 
-# just use basic l-valued methods for clarity and speed.
-sub name : lvalue {
-    $_[0]->{name};
-}
-
-sub sub_traits : lvalue {
-    $_[0]->{sub_traits};
-}
-
-sub requirements : lvalue {
-    $_[0]->{requirements};
-}
-
-sub methods : lvalue {
-    $_[0]->{methods};
-}
-
-sub overloads : lvalue {
-    $_[0]->{overloads};
-}
-
-sub conflicts : lvalue {
-    $_[0]->{conflicts};
+# 2006-09-12 danielr - ordinary accessors, no lvalues
+for my $method (qw(name sub_traits requirements methods overloads conflicts)) {
+    no strict 'refs';
+    *$method = sub {
+        return @_ == 1
+            ? $_[0]->{$method}
+            : @_ == 2 ? do { $_[0]->{$method} = $_[1] }
+            : croak "Invalid number of arguments\n";
+    };
 }
 
 # a basic clone function for moving in and out of the cache.

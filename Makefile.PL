@@ -2,15 +2,15 @@
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-  'NAME' => 'Class::Trait',
-  'VERSION_FROM' => 'lib/Class/Trait.pm',
-  'PREREQ_PM' => {
-    'File::Spec' => '0',
-    'Test::Differences' => '0.47',
-    'Test::Simple' => '0.62'
-  },
-  'INSTALLDIRS' => 'site',
-  'EXE_FILES' => [],
-  'PL_FILES' => {}
-)
+          'PL_FILES' => {},
+          'INSTALLDIRS' => 'site',
+          'NAME' => 'Class::Trait',
+          'EXE_FILES' => [],
+          'VERSION_FROM' => 'lib/Class/Trait.pm',
+          'PREREQ_PM' => {
+                           'Test::Differences' => '0.47',
+                           'File::Spec' => 0,
+                           'Test::Simple' => '0.62'
+                         }
+        )
 ;
