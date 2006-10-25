@@ -23,6 +23,9 @@ t/090_Class_Trait_Lib_tests.t
 t/100_trait_rename_does.t
 t/110_trait_performs.t
 t/120_trait_errors.t
+t/130_trait_runtime_instance.t
+t/140_trait_runtime_class.t
+t/150_inherited_does.t
 t/pod.t
 t/pod_coverage.t
 t/Test/Another/ColonInTheName.pm
@@ -53,6 +56,3 @@ t/test_lib/TSimple.pm
 t/test_lib/TSpouse.pm
 t/test_lib/TSyncRead.pm
 t/test_lib/Ttitle.pm
-temp/lib/TTrait1.pm
-temp/lib/TTrait2.pm
-temp/test.pl

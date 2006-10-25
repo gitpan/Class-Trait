@@ -16,20 +16,10 @@ BEGIN {
 # startup file, and then the Class::Trait->initialize() method should be
 # called after all are loaded. This should result in the correct behavior.
 
-{
+my $warn;
+local $SIG{__WARN__} = sub { $warn = shift };
 
-    local $SIG{__WARN__} = sub {
-        my $msg = shift;
-        if ( $msg =~ /^Too late to run INIT block/ ) {
-            pass('... got the expected warning');
-            return;
-        }
-        else {
-            warn $msg;
-        }
-    };
+eval "use BasicTrait;";
 
-    eval "use BasicTrait;";
-
-    ok( BasicTrait->does("TSimple"), '.. BasicTrait is TSimple' );
-}
+ok ! defined $warn, 'mod_perl should no longer warn on startup';
+ok( BasicTrait->does("TSimple"), '.. BasicTrait is TSimple' );

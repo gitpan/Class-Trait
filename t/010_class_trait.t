@@ -3,8 +3,7 @@
 use strict;
 use warnings;
 
-#use Test::More 'no_plan';
-use Test::More tests => 25;
+use Test::More tests => 22;
 
 BEGIN {
     unshift @INC => ( 't/test_lib', '/test_lib' );
@@ -18,11 +17,6 @@ is( BasicTrait->getName(), 'TSimple',
     '... and it should have the method from the trait' );
 
 ok( BasicTrait->does("TSimple"), '.. BasicTrait is TSimple' );
-ok( BasicTrait->does("BasicTrait"), '.. BasicTrait is also BasicTrait' );
-ok +TSimple->isa('Class::Trait::Base'),
-  'Traits should inherit from Class::Trait::Base';
-ok !BasicTrait->isa('Class::Trait::Base'),
-  '... but classes composing traits should not';
 
 ok( exists( $BasicTrait::{"TRAITS"} ), '... the $TRAITS are properly stored' );
 

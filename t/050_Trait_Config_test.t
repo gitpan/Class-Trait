@@ -55,12 +55,12 @@ my $conflicts = { "toString" => 1 };
 
 # add in those same variables
 
-$trait_config->name($name);
-$trait_config->sub_traits($sub_traits);
-$trait_config->requirements($requirements);
-$trait_config->methods($methods);
-$trait_config->overloads($overloads);
-$trait_config->conflicts($conflicts);
+$trait_config->name         = $name;
+$trait_config->sub_traits   = $sub_traits;
+$trait_config->requirements = $requirements;
+$trait_config->methods      = $methods;
+$trait_config->overloads    = $overloads;
+$trait_config->conflicts    = $conflicts;
 
 # now test that they were successfully inserted
 
