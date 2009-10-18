@@ -3,7 +3,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION = '0.22';
+our $VERSION = '0.3';
 
 use overload   ();
 use File::Spec ();
@@ -1201,7 +1201,7 @@ __END__
 
 =head1 NAME
 
-Class::Trait - An implementation of Traits in Perl
+Class::Trait - Deprecated.  Please use Moose::Role.
 
 =head1 SYNOPSIS
 

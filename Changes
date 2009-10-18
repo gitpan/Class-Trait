@@ -1,5 +1,8 @@
 Revision history for Perl extension Class::Trait.
 
+0.30 Oct 18, 2009
+    - Added deprecation notice.  No new features or bug fixes are intended.
+
 0.22 Oct 25, 2006
     - Fixed bug where does() failed when inherited.  Reported by Romano
       Daniel.
