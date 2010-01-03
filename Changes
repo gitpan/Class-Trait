@@ -1,5 +1,10 @@
 Revision history for Perl extension Class::Trait.
 
+0.31 Jan 3, 2010 (bug fixes)
+    - Normalized version numbers.
+    - Fixed lvalue bug which broke the debugger and profiler. [rt#23709]
+    - Fixed 'defined %hash' bug which broke bleadperl. [rt#23709]
+
 0.30 Oct 18, 2009
     - Added deprecation notice.  No new features or bug fixes are intended.
 

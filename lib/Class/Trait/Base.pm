@@ -4,7 +4,7 @@ use strict;
 use warnings;
 require Class::Trait;
 
-our $VERSION = '0.05';
+our $VERSION = '0.31';
 
 sub apply {
     my ($trait, $instance) = @_;

@@ -3,7 +3,9 @@ package Class::Trait::Config;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+use base qw(Class::Accessor::Fast);
+
+our $VERSION = '0.31';
 
 # we are going for a very struct-like class here to try and keep the
 # syntactical noise down.
@@ -23,30 +25,9 @@ sub new {
     }, $class;
 }
 
-# just use basic l-valued methods for clarity and speed.
-sub name : lvalue {
-    $_[0]->{name};
-}
-
-sub sub_traits : lvalue {
-    $_[0]->{sub_traits};
-}
-
-sub requirements : lvalue {
-    $_[0]->{requirements};
-}
-
-sub methods : lvalue {
-    $_[0]->{methods};
-}
-
-sub overloads : lvalue {
-    $_[0]->{overloads};
-}
-
-sub conflicts : lvalue {
-    $_[0]->{conflicts};
-}
+__PACKAGE__->mk_accessors(qw(
+    name sub_traits requirements methods overloads conflicts
+));
 
 # a basic clone function for moving in and out of the cache.
 sub clone {
@@ -95,34 +76,31 @@ empty containers.
 
 =item B<name>
 
-An C<lvalue> subroutine for accessing the C<name> string field of the
-Class::Trait::Config object.
+An accessor to the C<name> string field of the Class::Trait::Config object.
 
 =item B<sub_traits>
 
-An C<lvalue> subroutine for accessing the C<sub_traits> array reference field
-of the Class::Trait::Config object.
+An accessor to the C<sub_traits> array reference field of the Class::Trait::Config object.
 
 =item B<requirements>
 
-An C<lvalue> subroutine for accessing the C<requirements> hash reference field
+An accessor to the C<requirements> hash reference field
 of the Class::Trait::Config object. Note, the requirements field is a hash
 reference to speed requirement lookup, the values of the hash are simply
 booleans.
 
 =item B<methods>
 
-An C<lvalue> subroutine for accessing the C<methods> hash reference field of
-the Class::Trait::Config object.
+An accessor to the C<methods> hash reference field of the Class::Trait::Config object.
 
 =item B<overloads>
 
-An C<lvalue> subroutine for accessing the C<overloads> hash reference field of
+An accessor to the C<overloads> hash reference field of
 the Class::Trait::Config object.
 
 =item B<conflicts>
 
-An C<lvalue> subroutine for accessing the C<conflicts> hash reference field of
+An accessor to the C<conflicts> hash reference field of
 the Class::Trait::Config object. Note, the conflicts field is a hash reference
 to speed conflict lookup, the values of the hash are simply booleans.
 

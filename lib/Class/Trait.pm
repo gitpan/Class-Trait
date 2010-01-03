@@ -3,7 +3,7 @@ package Class::Trait;
 use strict;
 use warnings;
 
-our $VERSION = '0.3';
+our $VERSION = '0.31';
 
 use overload   ();
 use File::Spec ();
@@ -684,7 +684,7 @@ sub _load_trait {
 
     # initialize our trait configuration
     my $trait_config = Class::Trait::Config->new();
-    $trait_config->name = $trait;
+    $trait_config->name($trait);
 
     _get_trait_requirements($trait_config);
     _get_trait_methods($trait_config);
@@ -693,7 +693,8 @@ sub _load_trait {
     no strict 'refs';
 
     # if this trait has sub-traits, we need to process them.
-    if ( $trait->isa('Class::Trait::Base') && defined %{"${trait}::TRAITS"} )
+    no warnings 'once';
+    if ( $trait->isa('Class::Trait::Base') && keys %{"${trait}::TRAITS"} )
     {
         if (DEBUG) {
             debug "! found sub-traits in trait ($trait)";
@@ -704,7 +705,7 @@ sub _load_trait {
         if (DEBUG) {
             $debug_indent--;
             debug "< dumping trait ($trait) with subtraits ("
-              . ( join ", " => @{ $trait_config->{sub_traits} } ) . ") : "
+              . ( join ", " => @{ $trait_config->sub_traits } ) . ") : "
               . Data::Dumper::Dumper($trait_config);
         }
     }
@@ -737,8 +738,8 @@ sub _override_trait {
 
     # create a new trait config to represent the combined traits
     my $trait_config = Class::Trait::Config->new();
-    $trait_config->name       = $overriding_trait->name;
-    $trait_config->sub_traits = [
+    $trait_config->name($overriding_trait->name);
+    $trait_config->sub_traits([
 
         # if we have a composite trait we dont want to include the name here
         # as it is actually defined better in the sub_traits field, but if we
@@ -746,19 +747,22 @@ sub _override_trait {
 
         ( ( COMPOSITE() eq $trait->name ) ? () : $trait->name ),
         @{ $trait->sub_traits }
-    ];
+    ]);
 
     # let the overriding trait override the methods in the regular trait
-    $trait_config->methods
-      = { %{ $trait->methods }, %{ $overriding_trait->methods } };
+    $trait_config->methods(
+        { %{ $trait->methods }, %{ $overriding_trait->methods } }
+    );
 
     # the same for overloads
-    $trait_config->overloads
-      = { %{ $trait->overloads }, %{ $overriding_trait->overloads } };
+    $trait_config->overloads(
+        { %{ $trait->overloads }, %{ $overriding_trait->overloads } }
+    );
 
     # now combine the requirements as well
-    $trait_config->requirements
-      = { %{ $trait->requirements }, %{ $overriding_trait->requirements } };
+    $trait_config->requirements(
+        { %{ $trait->requirements }, %{ $overriding_trait->requirements } }
+    );
 
     if (DEBUG) {
         debug "? checking for requirement fufillment";
@@ -838,7 +842,7 @@ sub _get_trait_requirements {
     # get any requirements in the trait and turn it into a hash so we can
     # track stuff easier
 
-    $trait_config->requirements = { map { $_ => 1 } @{"${trait}::REQUIRES"} }
+    $trait_config->requirements({ map { $_ => 1 } @{"${trait}::REQUIRES"} })
       if defined @{"${trait}::"}{REQUIRES};
 }
 
@@ -867,7 +871,7 @@ sub _get_trait_methods {
         }
         $implementation_for{$_} = $method;
     }
-    $trait_config->methods = \%implementation_for;
+    $trait_config->methods(\%implementation_for);
 }
 
 sub _get_trait_overloads {
@@ -884,8 +888,9 @@ sub _get_trait_overloads {
     debug "< getting overloads for ${trait}" if DEBUG;
 
     # get the overload parameter hash
-    $trait_config->overloads = { %{"${trait}::OVERLOADS"} }
-      if defined %{"${trait}::OVERLOADS"};
+    no warnings 'once';
+    $trait_config->overloads({ %{"${trait}::OVERLOADS"} })
+      if keys %{"${trait}::OVERLOADS"};
 }
 
 ## ----------------------------------------------------------------------------
@@ -1012,7 +1017,7 @@ sub _sum_traits {
     my $trait_config = Class::Trait::Config->new();
 
     # we are making a composite trait, so lets call it as such
-    $trait_config->name = COMPOSITE;
+    $trait_config->name(COMPOSITE);
 
     $debug_indent++ if DEBUG;
 

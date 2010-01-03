@@ -5,6 +5,7 @@ WriteMakefile
           'NAME' => 'Class::Trait',
           'VERSION_FROM' => 'lib/Class/Trait.pm',
           'PREREQ_PM' => {
+                           'Class::Accessor::Fast' => 0,
                            'File::Spec' => 0,
                            'Test::Differences' => '0.47',
                            'Test::Simple' => '0.62'

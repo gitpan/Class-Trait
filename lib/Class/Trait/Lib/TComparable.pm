@@ -3,7 +3,7 @@ package TComparable;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.31';
 
 ## we are a trait
 use Class::Trait 'base';

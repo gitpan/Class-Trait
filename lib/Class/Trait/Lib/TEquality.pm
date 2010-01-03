@@ -3,7 +3,7 @@ package TEquality;
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.31';
 
 use Class::Trait 'base';
 
